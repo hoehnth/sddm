@@ -21,8 +21,8 @@
 #ifndef SDDM_AUTH_H
 #define SDDM_AUTH_H
 
-#include "AuthRequest.h"
 #include "AuthPrompt.h"
+#include "AuthRequest.h"
 
 #include <QtCore/QObject>
 #include <QtCore/QProcessEnvironment>
@@ -66,6 +66,7 @@ namespace SDDM {
         enum Info {
             INFO_NONE = 0,
             INFO_UNKNOWN,
+            INFO_PAM_CONV,
             INFO_PASS_CHANGE_REQUIRED,
             _INFO_LAST
         };

@@ -25,8 +25,9 @@
 class QLocalSocket;
 
 namespace SDDM {
+    class Request;
+    class AuthRequest;
     class SessionModel;
-
     class GreeterProxyPrivate;
     class GreeterProxy : public QObject {
         Q_OBJECT
@@ -54,6 +55,7 @@ namespace SDDM {
         bool isConnected() const;
 
         void setSessionModel(SessionModel *model);
+        AuthRequest *getRequest();
 
     public slots:
         void powerOff();
@@ -62,7 +64,10 @@ namespace SDDM {
         void hibernate();
         void hybridSleep();
 
+        // toward (pam) backend
         void login(const QString &user, const QString &password, const int sessionIndex) const;
+        void pamResponse(const QString &newPassword);
+        void cancelPamConv();
 
     private slots:
         void connected();
@@ -78,11 +83,15 @@ namespace SDDM {
         void canHibernateChanged(bool canHibernate);
         void canHybridSleepChanged(bool canHybridSleep);
 
-        void loginFailed();
+        // toward qml gui
+        void loginFailed(const QString err_msg);
         void loginSucceeded();
+        void pamConvMsg(const QString pam_msg);
+        void pamRequest();
 
     private:
         GreeterProxyPrivate *d { nullptr };
+        void setRequest(Request *r);
     };
 }
 
