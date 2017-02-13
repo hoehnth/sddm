@@ -26,6 +26,8 @@
 #include "SocketWriter.h"
 #include "Utils.h"
 
+#include "AuthBase.h"
+
 #include <QLocalServer>
 
 namespace SDDM {
@@ -99,8 +101,12 @@ namespace SDDM {
         connect(socket, SIGNAL(disconnected()), socket, SLOT(deleteLater()));
     }
 
+    // from greeter (to backend)
+
     void SocketServer::readyRead() {
         QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
+
+        static const char *logPrefix = "SocketServer: Message received from greeter:";
 
         // check socket
         if (!socket)
@@ -116,7 +122,7 @@ namespace SDDM {
         switch (GreeterMessages(message)) {
             case GreeterMessages::Connect: {
                 // log message
-                qDebug() << "Message received from greeter: Connect";
+                qDebug() << logPrefix << "Connect";
 
                 // send capabilities
                 SocketWriter(socket) << quint32(DaemonMessages::Capabilities) << quint32(daemonApp->powerManager()->capabilities());
@@ -130,7 +136,7 @@ namespace SDDM {
             break;
             case GreeterMessages::Login: {
                 // log message
-                qDebug() << "Message received from greeter: Login";
+                qDebug() << logPrefix << "Login";
 
                 // read username, pasword etc.
                 QString user, password, filename;
@@ -141,58 +147,85 @@ namespace SDDM {
                 emit login(socket, user, password, session);
             }
             break;
+            case GreeterMessages::PamResponse: {
+                qDebug() << logPrefix << "PamResponse";
+
+                // new password from greeter dialog
+                QString newPassword;
+                input >> newPassword;
+
+                // emit signal
+                emit sendPamResponse(newPassword);
+            }
+            break;
+            case GreeterMessages::PamCancel: {
+                qDebug() << logPrefix << "PamCancel";
+
+                // emit signal
+                emit cancelPamConv();
+            }
+            break;
             case GreeterMessages::PowerOff: {
                 // log message
-                qDebug() << "Message received from greeter: PowerOff";
+                qDebug() << logPrefix << "PowerOff";
 
                 // power off
                 daemonApp->powerManager()->powerOff();
             }
             break;
             case GreeterMessages::Reboot: {
-                // log message
-                qDebug() << "Message received from greeter: Reboot";
+                qDebug() << logPrefix << "Reboot";
 
                 // reboot
                 daemonApp->powerManager()->reboot();
             }
             break;
             case GreeterMessages::Suspend: {
-                // log message
-                qDebug() << "Message received from greeter: Suspend";
+                qDebug() << logPrefix << "Suspend";
 
                 // suspend
                 daemonApp->powerManager()->suspend();
             }
             break;
             case GreeterMessages::Hibernate: {
-                // log message
-                qDebug() << "Message received from greeter: Hibernate";
+                qDebug() << logPrefix << "Hibernate";
 
                 // hibernate
                 daemonApp->powerManager()->hibernate();
             }
             break;
             case GreeterMessages::HybridSleep: {
-                // log message
-                qDebug() << "Message received from greeter: HybridSleep";
+                qDebug() << logPrefix << "HybridSleep";
 
                 // hybrid sleep
                 daemonApp->powerManager()->hybridSleep();
             }
             break;
             default: {
-                // log message
-                qWarning() << "Unknown message" << message;
+                qWarning() << logPrefix << "Unknown message" << message;
             }
         }
     }
 
-    void SocketServer::loginFailed(QLocalSocket *socket) {
-        SocketWriter(socket) << quint32(DaemonMessages::LoginFailed);
+    // from (pam) backend to greeter
+
+    void SocketServer::loginFailed(QLocalSocket *socket, const QString &message) {
+        SocketWriter(socket) << quint32(DaemonMessages::LoginFailed) << message;
     }
 
     void SocketServer::loginSucceeded(QLocalSocket *socket) {
         SocketWriter(socket) << quint32(DaemonMessages::LoginSucceeded);
+    }
+
+    void SocketServer::pamConvMsg(QLocalSocket *socket, const QString &message) {
+        // send pam converse message to greeter
+        SocketWriter(socket) << quint32(DaemonMessages::PamConvMsg) << message;
+    }
+
+    void SocketServer::pamRequest(QLocalSocket *socket, const AuthRequest * const pam_request) {
+        // convert AuthRequest to simple Request
+        Request request = pam_request->request();
+        // send pam request to greeter
+        SocketWriter(socket) << quint32(DaemonMessages::PamRequest) << request;
     }
 }

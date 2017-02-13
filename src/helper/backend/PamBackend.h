@@ -21,6 +21,8 @@
 #if !defined(PAMBACKEND_H) && defined(USE_PAM)
 #define PAMBACKEND_H
 
+#define SDDM_BACKEND
+
 #include "Constants.h"
 #include "AuthMessages.h"
 #include "../Backend.h"
@@ -37,7 +39,8 @@ namespace SDDM {
         PamData();
 
         bool insertPrompt(const struct pam_message *msg, bool predict = true);
-        Auth::Info handleInfo(const struct pam_message *msg, bool predict);
+        Auth::Info handleInfo(const struct pam_message *msg, bool &newRequest, bool predict);
+        Auth::Error handleErr(const struct pam_message *msg, bool &newRequest, bool predict);
 
         const Request& getRequest() const;
         void completeRequest(const Request& request);
@@ -71,8 +74,10 @@ namespace SDDM {
         virtual QString userName();
 
     private:
+        bool m_convCanceled { false };
         PamData *m_data { nullptr };
         PamHandle *m_pam { nullptr };
+        static const QString &msgStyleString(int msg_style);
     };
 }
 

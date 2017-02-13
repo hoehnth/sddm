@@ -60,14 +60,18 @@ namespace SDDM {
         void login(QLocalSocket *socket,
                    const QString &user, const QString &password,
                    const Session &session);
+        void setPamResponse(const QString &password);
+        void cancelPamConv();
         bool attemptAutologin();
         void displayServerStarted();
 
     signals:
         void stopped();
 
-        void loginFailed(QLocalSocket *socket);
+        void loginFailed(QLocalSocket *socket, const QString &message);
         void loginSucceeded(QLocalSocket *socket);
+        void pamConvMsg(QLocalSocket *socket, const QString &message);
+        void pamRequest(QLocalSocket *socket, const AuthRequest * const request);
 
     private:
         QString findGreeterTheme() const;
@@ -78,6 +82,7 @@ namespace SDDM {
 
         bool m_relogin { true };
         bool m_started { false };
+        bool m_failed { false };
 
         int m_terminalId { 7 };
 
