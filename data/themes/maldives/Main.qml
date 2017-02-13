@@ -37,19 +37,15 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    Connections {
-        target: sddm
-
-        onLoginSucceeded: {
-            errorMessage.color = "steelblue"
-            errorMessage.text = textConstants.loginSucceeded
-        }
-
-        onLoginFailed: {
-            password.text = ""
-            errorMessage.color = "red"
-            errorMessage.text = textConstants.loginFailed
-        }
+    // container for password renewal logic
+    PasswordConnections {
+        sddmProp: sddm
+        requestProp: request
+        renewalDialog: renewal
+        pwdItem: password // use PasswordBox.text
+        getsBackFocus: password
+        errMsg: errorMessage
+        txtMsg: errorMessage
     }
 
     Background {
@@ -78,10 +74,31 @@ Rectangle {
         }
 
         Image {
+            id: renewalImg
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.margins: 64
+            width: renewal.width+32
+            height: renewal.height+32
+            visible: renewal.visible
+
+            source: "rectangle.png"
+        }
+
+        PasswordRenewal {
+            id: renewal
+            anchors.centerIn: renewalImg
+            visible: false
+            radius: 8
+            color: "transparent"
+        }
+
+        Image {
             id: rectangle
             anchors.centerIn: parent
             width: Math.max(320, mainColumn.implicitWidth + 50)
             height: Math.max(320, mainColumn.implicitHeight + 50)
+            enabled: !renewal.visible
 
             source: "rectangle.png"
 

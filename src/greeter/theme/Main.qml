@@ -38,15 +38,20 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    Connections {
-        target: sddm
-        onLoginSucceeded: {
-        }
+    function resetTxtMsg() {
+        txtMessage.text = textConstants.promptSelectUser
+        txtMessage.color = "white"
+    }
 
-        onLoginFailed: {
-            txtMessage.text = textConstants.loginFailed
-            listView.currentItem.password = ""
-        }
+    // container for password renewal logic
+    PasswordConnections {
+        sddmProp: sddm
+        requestProp: request
+        renewalDialog: renewal
+        pwdItem: listView.currentItem // use listView.currentItem.password
+        getsBackFocus: listView
+        errMsg: errMessage
+        txtMsg: txtMessage
     }
 
     Background {
@@ -117,10 +122,22 @@ Rectangle {
                 color: "#22000000"
                 clip: true
 
+                PasswordRenewal {
+                    id: renewal
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: usersContainer.top
+                    visible: false
+                    color: "#22888888"
+                    promptColor: "white"
+                    infosColor: "lightcoral"
+                }
+
                 Item {
                     id: usersContainer
                     width: parent.width; height: 300
                     anchors.verticalCenter: parent.verticalCenter
+                    // block user selection during password renewal
+                    enabled: !renewal.visible
 
                     ImageButton {
                         id: prevUser
@@ -149,7 +166,7 @@ Rectangle {
                         delegate: userDelegate
                         orientation: ListView.Horizontal
                         currentIndex: userModel.lastIndex
-
+                        onCurrentIndexChanged: resetTxtMsg()
                         KeyNavigation.backtab: prevUser; KeyNavigation.tab: nextUser
                     }
 
@@ -188,7 +205,9 @@ Rectangle {
                     font.pixelSize: 20
                     visible: __sddm_errors !== ""
                 }
+
             }
+
         }
 
         Rectangle {

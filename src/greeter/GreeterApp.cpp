@@ -28,6 +28,8 @@
 #include "ThemeMetadata.h"
 #include "UserModel.h"
 #include "KeyboardModel.h"
+#include "AuthRequest.h"
+#include "AuthPrompt.h"
 
 #include "MessageHandler.h"
 
@@ -174,9 +176,14 @@ namespace SDDM {
         view->rootContext()->setContextProperty(QStringLiteral("userModel"), m_userModel);
         view->rootContext()->setContextProperty(QStringLiteral("config"), *m_themeConfig);
         view->rootContext()->setContextProperty(QStringLiteral("sddm"), m_proxy);
+        view->rootContext()->setContextProperty(QStringLiteral("request"), m_proxy->getRequest());
         view->rootContext()->setContextProperty(QStringLiteral("keyboard"), m_keyboard);
         view->rootContext()->setContextProperty(QStringLiteral("primaryScreen"), QGuiApplication::primaryScreen() == screen);
         view->rootContext()->setContextProperty(QStringLiteral("__sddm_errors"), QString());
+
+        // register AuthRequest and AuthPrompt type for pamRequest signal
+        qmlRegisterUncreatableType<AuthRequest>("SddmAuth", 1, 0, "AuthRequest", QStringLiteral("AuthRequest object creation not allowed"));
+        qmlRegisterUncreatableType<AuthPrompt>("SddmAuth", 1, 0, "AuthPrompt", QStringLiteral("AuthPrompt object creation not allowed"));
 
         // get theme main script
         QString mainScript = QStringLiteral("%1/%2").arg(m_themePath).arg(m_metadata->mainScript());
