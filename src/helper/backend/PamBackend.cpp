@@ -106,11 +106,14 @@ namespace SDDM {
 
     /*
     * Expects an empty prompt list if the previous request has been processed
+    *
+    * @return true if new prompt was inserted or prompt message was set
+    * and false if prompt was found and already sent
     */
     bool PamData::insertPrompt(const struct pam_message* msg, bool predict) {
         Prompt &p = findPrompt(msg);
 
-        // first, check if we already have stored this propmpt
+        // first, check if we already have stored this prompt
         if (p.valid()) {
             // we have a response already - do nothing
             if (m_sent)
@@ -152,13 +155,49 @@ namespace SDDM {
         return true;
     }
 
-    Auth::Info PamData::handleInfo(const struct pam_message* msg, bool predict) {
-        if (QString::fromLocal8Bit(msg->msg).indexOf(QRegExp(QStringLiteral("^Changing password for [^ ]+$")))) {
-            if (predict)
+    /*
+     * Distinguish types of pam conversation infos.
+     *
+     * Currently different info types are not really used (see \ref Display::slotAuthInfo which
+     * just fires one signal for all info types). Just builds new request for "changing" keyword.
+     */
+    Auth::Info PamData::handleInfo(const struct pam_message* msg, bool &newRequest, bool predict) {
+        if (QString::fromLocal8Bit(msg->msg).indexOf(QRegExp(QStringLiteral("^Changing password for [^ ]+$"))))
+        {
+            if (predict) {
                 m_currentRequest = Request(changePassRequest);
+                newRequest = true;
+                m_sent = false;
+            }
             return Auth::INFO_PASS_CHANGE_REQUIRED;
         }
-        return Auth::INFO_UNKNOWN;
+        return Auth::INFO_PAM_CONV;
+    }
+
+    /* Figure out if pam (chAuthTok) sent an error or just an info during conversation
+     *
+     * Real error message e.g. "Password change aborted." But most are just info messages
+     * e.g. "change your password ... (administrator enforced)" with type PAM_ERROR_MSG.
+     */
+    Auth::Error PamData::handleErr(const struct pam_message* msg, bool &newRequest, bool predict) {
+        // bad password during password renewal (for expired password)
+        if (QString::fromLocal8Bit(msg->msg).startsWith(QStringLiteral("BAD PASSWORD:")))
+        {
+            if (predict)
+            {
+                // prepare new (empty) request, new password prompt will follow
+                m_currentRequest = Request();
+                newRequest = true;
+                m_sent = false;
+            }
+            return Auth::ERROR_NONE;
+        }
+
+        if(QString::fromLocal8Bit(msg->msg).startsWith(QStringLiteral("Password change aborted."))) {
+            return Auth::ERROR_AUTHENTICATION;
+        }
+
+        return Auth::ERROR_NONE;
     }
 
     /*
@@ -172,6 +211,7 @@ namespace SDDM {
         return response;
     }
 
+    /* As long as m_currentRequest is not sent (m_sent is false) return current request */
     const Request& PamData::getRequest() const {
         if (!m_sent)
             return m_currentRequest;
@@ -179,6 +219,7 @@ namespace SDDM {
             return invalidRequest;
     }
 
+    /* Use new request if prompts are equal to current one and set sent true. */
     void PamData::completeRequest(const Request& request) {
         if (request.prompts.length() != m_currentRequest.prompts.length()) {
             qWarning() << "[PAM] Different request/response list length, ignoring";
@@ -230,6 +271,7 @@ namespace SDDM {
     }
 
     bool PamBackend::authenticate() {
+        m_convCanceled = false; // reset for converse()
         if (!m_pam->authenticate()) {
             m_app->error(m_pam->errorString(), Auth::ERROR_AUTHENTICATION);
             return false;
@@ -289,6 +331,32 @@ namespace SDDM {
         return QString::fromLocal8Bit((const char*) m_pam->getItem(PAM_USER));
     }
 
+    /** @internal for debug log: get string representation of pam message msg_style */
+    const QString &PamBackend::msgStyleString(int msg_style)
+    {
+        static const QString msgStyle[] = {
+            QStringLiteral("PAM_PROMPT_ECHO_OFF"),
+            QStringLiteral("PAM_PROMPT_ECHO_ON"),
+            QStringLiteral("PAM_ERROR_MSG"),
+            QStringLiteral("PAM_TEXT_INFO"),
+            QStringLiteral("UNKNOWN"),
+        };
+
+        switch(msg_style) {
+            case PAM_PROMPT_ECHO_OFF:
+                return msgStyle[0]; break;
+            case PAM_PROMPT_ECHO_ON:
+                return msgStyle[1]; break;
+            case PAM_ERROR_MSG:
+                return msgStyle[2]; break;
+            case PAM_TEXT_INFO:
+                return msgStyle[3]; break;
+            default: break;
+        }
+
+        return msgStyle[4];
+    }
+
     int PamBackend::converse(int n, const struct pam_message **msg, struct pam_response **resp) {
         qDebug() << "[PAM] Conversation with" << n << "messages";
 
@@ -297,34 +365,69 @@ namespace SDDM {
         if (n <= 0 || n > PAM_MAX_NUM_MSG)
             return PAM_CONV_ERR;
 
+        // see whats going on in pam_conv
         for (int i = 0; i < n; i++) {
+            qDebug() << "[PAM] pam_conv: style=" << msgStyleString(msg[i]->msg_style)
+                            << "(" << msg[i]->msg_style << "), msg[" << i << "]=" << QString::fromLocal8Bit(msg[i]->msg);
+        }
+
+        for (int i = 0; i < n; i++) {
+
+            QString convMsg = QString::fromLocal8Bit(msg[i]->msg);
+            Auth::Error convErr;
+
             switch(msg[i]->msg_style) {
                 case PAM_PROMPT_ECHO_OFF:
                 case PAM_PROMPT_ECHO_ON:
                     newRequest = m_data->insertPrompt(msg[i], n == 1);
                     break;
                 case PAM_ERROR_MSG:
-                    m_app->error(QString::fromLocal8Bit(msg[i]->msg), Auth::ERROR_AUTHENTICATION);
+                    convErr = m_data->handleErr(msg[i], newRequest, n == 1);
+                    // upon pwd change pam sends error message and then starts conversation,
+                    // so treat most of them actually as infos
+                    if(convErr==Auth::ERROR_NONE)
+                        m_app->info(convMsg, Auth::INFO_PAM_CONV);
+                    else {
+                        qDebug() << "[PAM] PamBackend: pam error message, msg=" << convMsg;
+                        m_app->error(convMsg, Auth::ERROR_AUTHENTICATION /* convErr */);
+                        return PAM_CONV_ERR;
+                    }
                     break;
                 case PAM_TEXT_INFO:
+                    // send pam conversation msg to greeter via HelperApp, SocketServer, Display
                     // if there's only the info message, let's predict the prompts too
-                    m_app->info(QString::fromLocal8Bit(msg[i]->msg), m_data->handleInfo(msg[i], n == 1));
+                    m_app->info(convMsg, m_data->handleInfo(msg[i], newRequest, n == 1));
                     break;
                 default:
                     break;
             }
         }
 
+        // pam (chauthtok) does not shut up after canceled with PAM_CONV_ERR in previous pam_conv
+        if(m_convCanceled) {
+            qDebug() << "[PAM] PamBackend: conversation canceled, dump trailing messages";
+            return PAM_CONV_ERR;
+        }
+
         if (newRequest) {
-            Request sent = m_data->getRequest();
+            // get current request
+            Request send = m_data->getRequest();
             Request received;
 
-            if (sent.valid()) {
-                received = m_app->request(sent);
+            // any prompt?
+            if (send.valid()) {
+                // send request to daemon (ask for a response)
+                received = m_app->request(send, m_convCanceled);
+
+                // password input canceled in greeter
+                if (m_convCanceled) {
+                    return PAM_CONV_ERR;
+                }
 
                 if (!received.valid())
                     return PAM_CONV_ERR;
 
+                // compare request with response
                 m_data->completeRequest(received);
             }
         }

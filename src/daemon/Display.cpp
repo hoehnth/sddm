@@ -72,10 +72,17 @@ namespace SDDM {
         // connect login signal
         connect(m_socketServer, SIGNAL(login(QLocalSocket*,QString,QString,Session)),
                 this, SLOT(login(QLocalSocket*,QString,QString,Session)));
+        // pam responses and conversation cancel
+        connect(m_socketServer, SIGNAL(sendPamResponse(const QString&)), this, SLOT(setPamResponse(const QString&)));
+        connect(m_socketServer, SIGNAL(cancelPamConv()), this, SLOT(cancelPamConv()));
 
         // connect login result signals
-        connect(this, SIGNAL(loginFailed(QLocalSocket*)), m_socketServer, SLOT(loginFailed(QLocalSocket*)));
+        connect(this, SIGNAL(loginFailed(QLocalSocket*,const QString&)), m_socketServer, SLOT(loginFailed(QLocalSocket*,const QString&)));
         connect(this, SIGNAL(loginSucceeded(QLocalSocket*)), m_socketServer, SLOT(loginSucceeded(QLocalSocket*)));
+        // pam (conversation) info/error shown in greeter
+        connect(this, SIGNAL(pamConvMsg(QLocalSocket*,const QString&)), m_socketServer, SLOT(pamConvMsg(QLocalSocket*,const QString&)));
+        // new request from pam for e.g. password renewal (expired password)
+        connect(this, SIGNAL(pamRequest(QLocalSocket*,const AuthRequest * const)), m_socketServer, SLOT(pamRequest(QLocalSocket*,const AuthRequest * const)));
     }
 
     Display::~Display() {
@@ -221,7 +228,9 @@ namespace SDDM {
     void Display::login(QLocalSocket *socket,
                         const QString &user, const QString &password,
                         const Session &session) {
+
         m_socket = socket;
+        m_failed = false;
 
         //the SDDM user has special privileges that skip password checking so that we can load the greeter
         //block ever trying to log in as the SDDM user
@@ -231,6 +240,20 @@ namespace SDDM {
 
         // authenticate
         startAuth(user, password, session);
+    }
+
+    // password renewal, got response from greeter
+    void Display::setPamResponse(const QString &password) {
+        qDebug() << "Display: set pam response with new password";
+        m_auth->request()->setChangeResponse(m_passPhrase, password);
+        if(m_auth->request()->finishAutomatically() ==  false)
+            m_auth->request()->done();
+    }
+
+    // cancel pam (password renewal) conversation
+    // because user canceled password dialog in greeter
+    void Display::cancelPamConv() {
+        m_auth->request()->cancel();
     }
 
     QString Display::findGreeterTheme() const {
@@ -372,14 +395,23 @@ namespace SDDM {
                 emit loginSucceeded(m_socket);
         } else if (m_socket) {
             qDebug() << "Authentication failure";
-            emit loginFailed(m_socket);
+            // avoid to emit loginFailed twice
+            if(!m_failed) {
+                emit loginFailed(m_socket, QString());
+                m_failed = true;
+            }
         }
         m_socket = nullptr;
     }
 
+    // presentable to the user
     void Display::slotAuthInfo(const QString &message, Auth::Info info) {
-        // TODO: presentable to the user, eventually
-        Q_UNUSED(info);
+        if(info == Auth::INFO_PASS_CHANGE_REQUIRED ||
+           info == Auth::INFO_PAM_CONV)
+        {
+            // send pam conversation message to greeter
+            emit pamConvMsg(m_socket, message);
+        }
         qWarning() << "Authentication information:" << message;
     }
 
@@ -387,11 +419,17 @@ namespace SDDM {
         // TODO: handle more errors
         qWarning() << "Authentication error:" << message;
 
-        if (!m_socket)
+        if (!m_socket) {
+            qWarning() << "Greeter socket down!";
             return;
+        }
 
-        if (error == Auth::ERROR_AUTHENTICATION)
-            emit loginFailed(m_socket);
+        // avoid to emit loginFailed twice
+        if (error == Auth::ERROR_AUTHENTICATION && !m_failed)
+        {
+            emit loginFailed(m_socket, message);
+            m_failed = true;
+        }
     }
 
     void Display::slotHelperFinished(Auth::HelperExitStatus status) {
@@ -404,15 +442,50 @@ namespace SDDM {
             stop();
     }
 
+    /* got new request (with prompts) from pam conv(), e.g. for expired pwd
+     * which requires response from greeter UI (new password) */
     void Display::slotRequestChanged() {
-        if (m_auth->request()->prompts().length() == 1) {
+
+        int n_prompts = m_auth->request()->prompts().count();
+        AuthPrompt::Type type_prompt0(AuthPrompt::NONE);
+
+        // get type if we have a prompt
+        if(n_prompts>0)
+            type_prompt0 = m_auth->request()->prompts()[0]->type();
+        // ignore empty requests
+        else return;
+
+        // see what we got from pam conv() and will be send to greeter
+        qDebug() << "Display: requestChanged with " << n_prompts << " prompts from Auth";
+
+        // respond to login password request
+        if (n_prompts == 1 && type_prompt0 == AuthPrompt::LOGIN_PASSWORD) {
             m_auth->request()->prompts()[0]->setResponse(qPrintable(m_passPhrase));
             m_auth->request()->done();
-        } else if (m_auth->request()->prompts().length() == 2) {
+            return;
+        }
+
+        // handle request with user name and password prompts
+        if (n_prompts == 2 && type_prompt0 == AuthPrompt::LOGIN_USER )
+        {
             m_auth->request()->prompts()[0]->setResponse(qPrintable(m_auth->user()));
             m_auth->request()->prompts()[1]->setResponse(qPrintable(m_passPhrase));
             m_auth->request()->done();
+            return;
         }
+
+        // handle password renewal case (gets response from greeter),
+        // will finish with request->done() later in setPamResponse()
+        if (n_prompts >= 2 &&
+            m_auth->request()->findPrompt(AuthPrompt::CHANGE_NEW) &&
+            m_auth->request()->findPrompt(AuthPrompt::CHANGE_REPEAT))
+        {
+            // send password renewal request to greeter (via SocketServer)
+            emit pamRequest(m_socket, m_auth->request());
+            return;
+        }
+
+        qWarning() << "Display: Unable to handle Auth request!";
     }
 
     void Display::slotSessionStarted(bool success) {
