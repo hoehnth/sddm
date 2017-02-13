@@ -23,11 +23,15 @@
 
 #include <QtCore/QObject>
 
+#include <AuthPrompt.h>
+
+// no qml properties for Backend stuff
+#ifndef SDDM_BACKEND
 #include <QtQml/QQmlListProperty>
+#endif
 
 namespace SDDM {
-    class Auth;
-    class AuthPrompt;
+    //class AuthPrompt;
     class Request;
     /**
     * \brief
@@ -48,12 +52,29 @@ namespace SDDM {
     *
     * \todo Decide if it's sane to use the info messages from PAM or to somehow parse them
     * and make the password changing message into a Request::Type of some kind
+    *
+    *  \note AuthRequest (and AuthPrompt) is mainly used in (Pam)Backend
+     * and closely bundled with the Auth.cpp parent which handles user session
+     * after authentication etc.
+     *
+     * But AuthRequest is also secondly used as pure (pam_conv) message container in greeter
+     * without the Auth parent overhead (but still with the signal/slot amenities) - depending on
+     * the constructor used. In this case it just hands over the pam_conv() messages and possibly
+     * user (password) responses between daemon, greeter and qml.
     */
     class AuthRequest : public QObject {
         Q_OBJECT
-        Q_PROPERTY(QQmlListProperty<AuthPrompt> prompts READ promptsDecl NOTIFY promptsChanged)
+#ifndef SDDM_BACKEND
+        Q_PROPERTY(QQmlListProperty<SDDM::AuthPrompt> prompts READ promptsRead NOTIFY promptsChanged)
         Q_PROPERTY(bool finishAutomatically READ finishAutomatically WRITE setFinishAutomatically NOTIFY finishAutomaticallyChanged)
+#endif
     public:
+        /** @brief for AuthRequest without using Auth parent.
+         *
+         * when used as parameter container to hand over pam request (prompts with pam
+         * messages and user pwd responses) between daemon and greeter (proxy) to qml view.
+         */
+        AuthRequest(QObject *parent = 0);
         /**
         * @return list of the contained prompts
         */
@@ -62,30 +83,70 @@ namespace SDDM {
         * For QML apps
         * @return list of the contained prompts
         */
-        QQmlListProperty<AuthPrompt> promptsDecl();
+#ifndef SDDM_BACKEND
+        QQmlListProperty<AuthPrompt> promptsRead();
+        /**
+         * @brief Find pam message of type CHANGE_NEW in prompts list
+         * @return pam message string
+         */
+        Q_INVOKABLE QString findNewPwdMessage();
+        /**
+         * @brief Find pam message of type CHANGE_REPEAT in prompts list
+         * @return pam message string
+         */
+        Q_INVOKABLE QString findRepeatPwdMessage();
+        /**
+          * @brief Write password responses into request for pam conv(),
+          * for AuthPrompt::CHANGE_NEW, CHANGE_REPEAT, CHANGE_CURRENT
+          * @param currentPwd Current user password (expired password)
+          * @param newPassword New user password (replaces expired password)
+          */
+        Q_INVOKABLE void setChangeResponse(const QString &currentPwd, const QString &newPassword);
+#endif
 
         static AuthRequest *empty();
 
         bool finishAutomatically();
+        /**
+         * @brief Trigger slot done() automaticly when all AuthPrompt responses (user passwords) are set.
+         * @param value  if true done() automaticly called, if false user calls done() after specifying all responses
+         */
         void setFinishAutomatically(bool value);
+        /**
+         * @brief Fill AuthRequest with Prompts from Request
+         * @param Request Prompts with possible responses
+         */
+        void setRequest(const Request * const request = nullptr);
+        /**
+         * @brief convert AuthRequest to simple Request type
+         * @return Request with Prompts
+         */
+        Request request() const;
+        /**
+         * @brief find prompt with specified type
+         * @param type \ref AuthPrompt::Type
+         * @return pointer to prompt of that type
+         */
+        AuthPrompt *findPrompt(AuthPrompt::Type type) const;
+
     public Q_SLOTS:
         /**
-        * Call this slot when all prompts has been filled to your satisfaction
+        * Call this slot when all prompts has been filled (with responses) to your satisfaction
         */
         void done();
+        /**
+        * Call this slot when user canceled password dialog
+        */
+        void cancel();
     Q_SIGNALS:
         /**
         * Emitted when \ref done was called
         */
         void finished();
-
+        void canceled();
         void finishAutomaticallyChanged();
         void promptsChanged();
-    private:
-        AuthRequest(Auth *parent);
-        void setRequest(const Request *request = nullptr);
-        Request request() const;
-        friend class Auth;
+    protected:
         class Private;
         Private *d { nullptr };
     };

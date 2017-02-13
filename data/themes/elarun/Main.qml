@@ -35,13 +35,15 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    Connections {
-        target: sddm
-        onLoginSucceeded: {
-        }
-        onLoginFailed: {
-            pw_entry.text = ""
-        }
+    // container for password renewal logic
+    PasswordConnections {
+        sddmProp: sddm
+        requestProp: request
+        renewalDialog: renewal
+        pwdItem: pw_entry // use PasswordBox.text
+        getsBackFocus: pw_entry
+        //errMsg: none
+        //txtMsg: none
     }
 
     Background {
@@ -60,9 +62,22 @@ Rectangle {
         color: "transparent"
         //visible: primaryScreen
 
+        PasswordRenewal {
+            id: renewal
+            anchors.horizontalCenter: rectangle.horizontalCenter
+            anchors.top: rectangle.bottom
+            anchors.topMargin: 32
+            visible: false
+            radius: 8
+            color: "#22888888"
+            infosColor: "lightcoral"
+        }
+
         Rectangle {
+            id: rectangle
             width: 416; height: 262
             color: "#00000000"
+            enabled: !renewal.visible
 
             anchors.centerIn: parent
 

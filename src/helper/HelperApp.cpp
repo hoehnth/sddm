@@ -163,18 +163,32 @@ namespace SDDM {
         m_socket->waitForBytesWritten();
     }
 
-    Request HelperApp::request(const Request& request) {
+    Request HelperApp::request(const Request& request, bool &cancel) {
         Msg m = Msg::MSG_UNKNOWN;
         Request response;
         SafeDataStream str(m_socket);
         str << Msg::REQUEST << request;
         str.send();
+        m_socket->waitForBytesWritten();
         str.receive();
-        str >> m >> response;
-        if (m != REQUEST) {
-            response = Request();
-            qCritical() << "Received a wrong opcode instead of REQUEST:" << m;
-        }
+        str >> m;
+        switch(m) {
+            // user response from daemon (greeter)
+            case REQUEST:
+                str >> response;
+                qDebug() << "HelperApp: daemon response received";
+                break;
+            // password renewal canceled in greeter
+            case CANCEL:
+                cancel = true;
+                qDebug() << "HelperApp: Message received from daemon: CANCEL";
+                // terminate user session in Auth (QProcess child)
+                m_session->terminate();
+                break;
+            default:
+                response = Request();
+                qCritical() << "HelperApp: Received a wrong opcode instead of REQUEST or CANCEL:" << m;
+        } // switch
         return response;
     }
 
@@ -184,6 +198,7 @@ namespace SDDM {
         SafeDataStream str(m_socket);
         str << Msg::AUTHENTICATED << user;
         str.send();
+        m_socket->waitForBytesWritten();
         if (user.isEmpty())
             return env;
         str.receive();
@@ -201,6 +216,7 @@ namespace SDDM {
         SafeDataStream str(m_socket);
         str << Msg::SESSION_STATUS << success;
         str.send();
+        m_socket->waitForBytesWritten();
         str.receive();
         str >> m;
         if (m != SESSION_STATUS) {

@@ -1,4 +1,7 @@
-include_directories("${CMAKE_SOURCE_DIR}/src/common")
+include_directories(
+    "${CMAKE_SOURCE_DIR}/src/common"
+    "${CMAKE_SOURCE_DIR}/src/auth"
+)
 include_directories("${CMAKE_BINARY_DIR}/src/common")
 
 set(GREETER_SOURCES
@@ -8,6 +11,8 @@ set(GREETER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/SocketWriter.cpp
     ${CMAKE_SOURCE_DIR}/src/common/ThemeConfig.cpp
     ${CMAKE_SOURCE_DIR}/src/common/ThemeMetadata.cpp
+    ${CMAKE_SOURCE_DIR}/src/auth/AuthPrompt.cpp
+    ${CMAKE_SOURCE_DIR}/src/auth/AuthRequest.cpp
     GreeterApp.cpp
     GreeterProxy.cpp
     KeyboardLayout.cpp

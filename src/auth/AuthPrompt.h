@@ -24,7 +24,6 @@
 #include <QtCore/QObject>
 
 namespace SDDM {
-    class Auth;
     class AuthRequest;
     class Prompt;
     /**
@@ -85,6 +84,12 @@ namespace SDDM {
         * @param r data entered by the user
         */
         void setResponse(const QByteArray &r);
+        /**
+         * @brief get string representation of AuthPrompt type, see enum @ref Type
+         * @note for debug logging
+         */
+        static const QString &typeToString(int type);
+
     Q_SIGNALS:
         /**
         * Emitted when the response was entered by the user
