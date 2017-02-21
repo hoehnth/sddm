@@ -1,5 +1,5 @@
 /***************************************************************************
-* Copyright (c) 2017 Thomas Hoehn <Hoehn.Thomas@heidenhain.de>
+* Copyright (c) 2017 Thomas Hoehn <thomas_hoehn@gmx.net>
 *
 * Permission is hereby granted, free of charge, to any person
 * obtaining a copy of this software and associated documentation
@@ -20,14 +20,12 @@
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 * OR OTHER DEALINGS IN THE SOFTWARE.
 *
-* Note: simple password input dialog for user with expired password (pam conversation)
+* Note: container for password renewal logic
 *
 ***************************************************************************/
 
 import QtQuick 2.0
 import SddmComponents 2.0
-
-// container for password renewal logic
 
 Item {
 
@@ -45,6 +43,13 @@ Item {
     property var getsBackFocus: QtObject
 
     TextConstants { id: textConstants }
+
+    function clearPwd() {
+        if(typeof pwdItem.password !== "undefined")
+            pwdItem.password = ""
+        else if(typeof pwdItem.text !== "undefined")
+            pwdItem.text = ""
+    }
 
     // handles password renewal events
     Connections {
@@ -69,10 +74,7 @@ Item {
         onVisibleChanged: {
             if(!renewalDialog.visible) {
                 renewalDialog.clear() // clear pam infos
-                if(typeof pwdItem.password !== "undefined")
-                    pwdItem.password = ""
-                else if(typeof pwdItem.text !== "undefined")
-                    pwdItem.text = ""
+                clearPwd()
 
                 // last selected user or input field gets focus back
                 getsBackFocus.forceActiveFocus()
@@ -100,6 +102,7 @@ Item {
                    txtMsg.text += "\n" + err_msg
             }
             renewalDialog.visible = false
+            clearPwd()
         }
 
         // show messages from pam conversation (for expired passwords)

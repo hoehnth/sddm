@@ -86,8 +86,8 @@ namespace SDDM {
     void AuthRequest::cancel() {
         if (!d->finished) {
             d->finished = true;
-            Q_EMIT canceled();
         }
+        Q_EMIT canceled();
     }
 
     bool AuthRequest::finishAutomatically() {
