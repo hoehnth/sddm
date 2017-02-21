@@ -162,7 +162,7 @@ namespace SDDM {
      * just fires one signal for all info types). Just builds new request for "changing" keyword.
      */
     Auth::Info PamData::handleInfo(const struct pam_message* msg, bool &newRequest, bool predict) {
-        if (QString::fromLocal8Bit(msg->msg).indexOf(QRegExp(QStringLiteral("^Changing password for [^ ]+$"))))
+        if (QString::fromLocal8Bit(msg->msg).indexOf(QRegExp(QStringLiteral("^Changing password for [^ ]+$"))) >= 0)
         {
             if (predict) {
                 m_currentRequest = Request(changePassRequest);
@@ -187,7 +187,7 @@ namespace SDDM {
             {
                 // prepare new (empty) request, new password prompt will follow
                 m_currentRequest = Request();
-                newRequest = true;
+                newRequest = false;
                 m_sent = false;
             }
             return Auth::ERROR_NONE;
