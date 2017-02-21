@@ -53,7 +53,7 @@ namespace SDDM {
         QList<AuthPrompt*> promptsCopy(d->prompts);
         d->prompts.clear();
         if (request != nullptr) {
-            for (const Prompt& p : qAsConst(request->prompts)) {
+            for(const Prompt& p : qAsConst(request->prompts)) {
                 AuthPrompt *qap = new AuthPrompt(&p, this);
                 d->prompts << qap;
                 if (finishAutomatically())
@@ -86,8 +86,8 @@ namespace SDDM {
     void AuthRequest::cancel() {
         if (!d->finished) {
             d->finished = true;
-            Q_EMIT canceled();
         }
+        Q_EMIT canceled();
     }
 
     bool AuthRequest::finishAutomatically() {
@@ -103,7 +103,7 @@ namespace SDDM {
 
     Request AuthRequest::request() const {
         Request r;
-        for (const AuthPrompt* qap : qAsConst(d->prompts)) {
+        for(const AuthPrompt* qap : qAsConst(d->prompts)) {
             Prompt p;
             p.hidden = qap->hidden();
             p.message = qap->message();
@@ -115,7 +115,7 @@ namespace SDDM {
     }
 
     QString AuthRequest::findNewPwdMessage() {
-        Q_FOREACH(const AuthPrompt* qap, d->prompts) {
+        for(const AuthPrompt* qap : qAsConst(d->prompts)) {
             if(qap->type()==AuthPrompt::CHANGE_NEW)
                 return qap->message();
         }
@@ -123,7 +123,7 @@ namespace SDDM {
     }
 
     QString AuthRequest::findRepeatPwdMessage() {
-        Q_FOREACH(const AuthPrompt* qap, d->prompts) {
+        for(const AuthPrompt* qap : qAsConst(d->prompts)) {
             if(qap->type()==AuthPrompt::CHANGE_REPEAT)
                 return qap->message();
         }
@@ -131,7 +131,7 @@ namespace SDDM {
     }
 
     AuthPrompt *AuthRequest::findPrompt(AuthPrompt::Type type) const {
-        Q_FOREACH(AuthPrompt* qap, d->prompts) {
+        for(AuthPrompt* qap : qAsConst(d->prompts)) {
             if(qap->type()==type)
                 return qap;
         }
