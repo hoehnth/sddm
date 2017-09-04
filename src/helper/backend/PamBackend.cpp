@@ -197,6 +197,11 @@ namespace SDDM {
             return Auth::ERROR_AUTHENTICATION;
         }
 
+        // first login for user, home dir will be created, ignore error message (which would shutdown sddm)
+        if(QString::fromLocal8Bit(msg->msg).startsWith(QStringLiteral("Unable to create and initialize directory"))) {
+            return Auth::ERROR_NONE;
+        }
+
         return Auth::ERROR_NONE;
     }
 
