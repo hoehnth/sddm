@@ -43,6 +43,9 @@ namespace SDDM {
         void setSocket(const QString &socket);
         void setTheme(const QString &theme);
 
+    signals:
+        void stopped();
+
     public slots:
         bool start();
         void stop();
