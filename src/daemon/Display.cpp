@@ -56,6 +56,8 @@ namespace SDDM {
         m_socketServer(new SocketServer(this)),
         m_greeter(new Greeter(this)) {
 
+        connect(m_greeter, SIGNAL(stopped()), this, SLOT(slotGreeterStopped()));
+
         // respond to authentication requests
         m_auth->setVerbose(true);
         connect(m_auth, &Auth::requestChanged, this, &Display::slotRequestChanged);
@@ -360,7 +362,7 @@ namespace SDDM {
 
     void Display::slotAuthenticationFinished(const QString &user, bool success) {
         if (success) {
-            qDebug() << "Authenticated successfully";
+            qDebug() << "Authenticated successfully" << user;
 
             if (!m_reuseSessionId.isNull()) {
                 OrgFreedesktopLogin1ManagerInterface manager(Logind::serviceName(), Logind::managerPath(), QDBusConnection::systemBus());
@@ -383,26 +385,37 @@ namespace SDDM {
 
             if (m_socket)
                 emit loginSucceeded(m_socket);
-        } else if (m_socket) {
+        } else {
             qDebug() << "Authentication failure";
+
+            if (!m_socket) {
+                qWarning() << "Greeter socket down!";
+                return;
+            }
+
             // avoid to emit loginFailed twice
             if(!m_failed) {
                 emit loginFailed(m_socket, QString());
                 m_failed = true;
             }
         }
-        m_socket = nullptr;
     }
 
     // presentable to the user
     void Display::slotAuthInfo(const QString &message, Auth::Info info) {
+        qWarning() << "Authentication information:" << message;
+
+        if (!m_socket) {
+            qWarning() << "Greeter socket down!";
+            return;
+        }
+
         if(info == Auth::INFO_PASS_CHANGE_REQUIRED ||
            info == Auth::INFO_PAM_CONV)
         {
             // send pam conversation message to greeter
             emit pamConvMsg(m_socket, message);
         }
-        qWarning() << "Authentication information:" << message;
     }
 
     void Display::slotAuthError(const QString &message, Auth::Error error) {
@@ -417,8 +430,11 @@ namespace SDDM {
         // avoid to emit loginFailed twice
         if (error == Auth::ERROR_AUTHENTICATION && !m_failed)
         {
-            emit loginFailed(m_socket, message);
             m_failed = true;
+
+            // forward message only if greeter is started
+            if(m_socket)
+                emit loginFailed(m_socket, message);
         }
     }
 
@@ -470,8 +486,10 @@ namespace SDDM {
             m_auth->request()->findPrompt(AuthPrompt::CHANGE_NEW) &&
             m_auth->request()->findPrompt(AuthPrompt::CHANGE_REPEAT))
         {
-            // send password renewal request to greeter (via SocketServer)
-            emit pamRequest(m_socket, m_auth->request());
+            if(m_socket)
+                // send password renewal request to greeter (via SocketServer)
+                emit pamRequest(m_socket, m_auth->request());
+
             return;
         }
 
@@ -480,5 +498,12 @@ namespace SDDM {
 
     void Display::slotSessionStarted(bool success) {
         qDebug() << "Session started";
+    }
+
+    // inform daemon if greeter stopped, so we dont forward
+    // errors or infos etc. through invalid socket
+    void Display::slotGreeterStopped() {
+        qDebug() << "Display: Greeter was stopped";
+        m_socket = nullptr;
     }
 }
