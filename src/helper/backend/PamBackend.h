@@ -21,8 +21,6 @@
 #if !defined(PAMBACKEND_H) && defined(USE_PAM)
 #define PAMBACKEND_H
 
-#define SDDM_BACKEND
-
 #include "Constants.h"
 #include "AuthMessages.h"
 #include "../Backend.h"

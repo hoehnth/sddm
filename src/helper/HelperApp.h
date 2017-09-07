@@ -21,8 +21,6 @@
 #ifndef HELPERAPP_H
 #define HELPERAPP_H
 
-#define SDDM_BACKEND
-
 #include <QtCore/QCoreApplication>
 #include <QtCore/QProcessEnvironment>
 

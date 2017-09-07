@@ -25,10 +25,7 @@
 
 #include <AuthPrompt.h>
 
-// no qml properties for Backend stuff
-#ifndef SDDM_BACKEND
 #include <QtQml/QQmlListProperty>
-#endif
 
 namespace SDDM {
     //class AuthPrompt;
@@ -64,10 +61,9 @@ namespace SDDM {
     */
     class AuthRequest : public QObject {
         Q_OBJECT
-#ifndef SDDM_BACKEND
         Q_PROPERTY(QQmlListProperty<SDDM::AuthPrompt> prompts READ promptsRead NOTIFY promptsChanged)
         Q_PROPERTY(bool finishAutomatically READ finishAutomatically WRITE setFinishAutomatically NOTIFY finishAutomaticallyChanged)
-#endif
+
     public:
         /** @brief for AuthRequest without using Auth parent.
          *
@@ -83,7 +79,6 @@ namespace SDDM {
         * For QML apps
         * @return list of the contained prompts
         */
-#ifndef SDDM_BACKEND
         QQmlListProperty<AuthPrompt> promptsRead();
         /**
          * @brief Find pam message of type CHANGE_NEW in prompts list
@@ -102,7 +97,6 @@ namespace SDDM {
           * @param newPassword New user password (replaces expired password)
           */
         Q_INVOKABLE void setChangeResponse(const QString &currentPwd, const QString &newPassword);
-#endif
 
         static AuthRequest *empty();
 
