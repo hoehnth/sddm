@@ -21,8 +21,6 @@
 #ifndef BACKEND_H
 #define BACKEND_H
 
-#define SDDM_BACKEND
-
 #include <QtCore/QObject>
 
 namespace SDDM {
