@@ -444,10 +444,7 @@ namespace SDDM {
         if (error == Auth::ERROR_AUTHENTICATION && !m_failed)
         {
             m_failed = true;
-
-            // forward message only if greeter is started
-            if(m_socket)
-                emit loginFailed(m_socket, message);
+            emit loginFailed(m_socket, message);
         }
     }
 
