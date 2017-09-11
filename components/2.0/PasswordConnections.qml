@@ -51,6 +51,10 @@ Item {
             pwdItem.text = ""
     }
 
+    // tell greeter we handle expired passwords,
+    // default is no password renewal in old themes
+    Component.onCompleted: sddm.enablePwdRenewal()
+
     // handles password renewal events
     Connections {
 
