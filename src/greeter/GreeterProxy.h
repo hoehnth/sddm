@@ -68,6 +68,7 @@ namespace SDDM {
         void login(const QString &user, const QString &password, const int sessionIndex) const;
         void pamResponse(const QString &newPassword);
         void cancelPamConv();
+        void enablePwdRenewal();
 
     private slots:
         void connected();

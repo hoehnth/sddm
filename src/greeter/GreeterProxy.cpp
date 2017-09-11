@@ -41,6 +41,7 @@ namespace SDDM {
         bool canSuspend { false };
         bool canHibernate { false };
         bool canHybridSleep { false };
+        bool pwdRenewal { false };
     };
 
     GreeterProxy::GreeterProxy(const QString &socket, QObject *parent) : QObject(parent), d(new GreeterProxyPrivate()) {
@@ -66,6 +67,11 @@ namespace SDDM {
 
     void GreeterProxy::setSessionModel(SessionModel *model) {
         d->sessionModel = model;
+    }
+
+    void GreeterProxy::enablePwdRenewal() {
+        qDebug() << "Enabled password renewal for theme.";
+        d->pwdRenewal = true;
     }
 
     /** AuthRequest for exchange of PAM prompts/responses
@@ -258,10 +264,17 @@ namespace SDDM {
                         qDebug() << "GreeterProxy: Prompt message=" << p.message << ", hidden=" << p.hidden
                                         << ", type =" << AuthPrompt::typeToString(p.type) << "(" << p.type << ")";
 
-                    // send pam msg's to GUI
-                    emit pamRequest();
+                    // compatibility with old themes: cancel pam
+                    // conversation if theme does not support it
+                    if(!d->pwdRenewal) {
+                        qDebug() << "Cancled password renewal. Not supported by theme.";
+                        cancelPamConv();
+                    } else
+                        // otherwise send pam messages to GUI
+                        emit pamRequest();
                 }
                 break;
+
                 default: {
                     // log message
                     qWarning() << "Unknown message received from daemon.";
