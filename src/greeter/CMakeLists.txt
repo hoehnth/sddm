@@ -21,6 +21,11 @@ set(GREETER_SOURCES
     XcbKeyboardBackend.cpp
 )
 
+# show Qt virtual keyboard in greeter application
+# (integration method: application) and not in separate window, see:
+# http://doc.qt.io/qt-5/qtvirtualkeyboard-deployment-guide.html#loading-the-plugin
+set(ENV{CONFIG} "+=disable-desktop")
+
 configure_file("theme/Main.qml"                  "theme/Main.qml")
 configure_file("theme.qrc"                       "theme.qrc")
 

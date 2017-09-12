@@ -26,6 +26,9 @@
 import QtQuick ${COMPONENTS_VERSION}
 import SddmComponents ${COMPONENTS_VERSION}
 
+// Virtual keyboard from Qt 5.9
+import QtQuick.VirtualKeyboard 2.2
+
 Rectangle {
     id: container
     width: 1024
@@ -37,6 +40,18 @@ Rectangle {
     property int sessionIndex: session.index
 
     TextConstants { id: textConstants }
+
+    // toggle on-screen keyboard
+    function toogleKeyboard() {
+       if(virtKbd.visible) {
+           virtKbd.visible = false
+            //btnKeyboard.text = "Show Keyboard"
+        }
+        else {
+            virtKbd.visible = true
+            //btnKeyboard.text = "Hide Keyboard"
+        }
+    }
 
     Connections {
         target: sddm
@@ -256,6 +271,20 @@ Rectangle {
                 spacing: 5
 
                 ImageButton {
+                    id: btnKeyboard
+                    height: parent.height
+                    //source: "keyboard.png"
+                    source: "reboot.png"
+
+                    visible: true
+
+                    onClicked: toogleKeyboard()
+
+                    //text: "Show Keyboard"
+                    KeyNavigation.backtab: listView
+                }
+
+                ImageButton {
                     id: btnReboot
                     height: parent.height
                     source: "reboot.png"
@@ -278,6 +307,14 @@ Rectangle {
 
                     KeyNavigation.backtab: btnReboot; KeyNavigation.tab: prevUser
                 }
+            }
+
+            InputPanel {
+                id: virtKbd
+                 visible: false
+                 width: 768
+                 y: parent.height - virtKbd.height
+                 anchors.horizontalCenter: parent.horizontalCenter
             }
         }
     }

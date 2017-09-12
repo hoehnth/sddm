@@ -259,6 +259,10 @@ int main(int argc, char **argv) {
         qDebug() << "High-DPI autoscaling not Enabled";
     }
 
+    // load plugin for qt virtual keyboard, see:
+    // http://doc.qt.io/qt-5/qtvirtualkeyboard-deployment-guide.html#loading-the-plugin
+    qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
+
     QStringList arguments;
 
     for (int i = 0; i < argc; i++)
