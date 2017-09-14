@@ -71,7 +71,7 @@ Item {
         onError: {
             // unlikely: invalid prompt,
             // i.e. new/repeat prompt for dialog not found in request
-            if(errMsg.objName != "")
+            if(errMsg.objName !== "")
                 errMsg.text = msg
         }
 
@@ -95,7 +95,7 @@ Item {
         }
 
         onLoginFailed: {
-            if(txtMsg.objName != "")
+            if(txtMsg.objName !== "")
             {
                 txtMsg.color = "red"
                 txtMsg.text = textConstants.loginFailed
