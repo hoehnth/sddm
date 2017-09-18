@@ -29,8 +29,8 @@ import SddmComponents 2.0
 
 Item {
 
-    property var sddmProp: QtObject
-    property var requestProp: QtObject
+    property var sddmProxy: QtObject
+    property var requestData: QtObject
 
     property var renewalDialog: QtObject
     property var pwdItem: QtObject
@@ -42,6 +42,11 @@ Item {
     // gets focus when password renewal dialog closes
     property var getsBackFocus: QtObject
 
+    // items which are disabled when password dialog is active
+    property var disabledItems: []
+
+    property var itemStates: [] // bool
+
     TextConstants { id: textConstants }
 
     function clearPwd() {
@@ -49,6 +54,24 @@ Item {
             pwdItem.password = ""
         else if(typeof pwdItem.text !== "undefined")
             pwdItem.text = ""
+    }
+
+    // disable other selected Main.qml items
+    // when password dialog is active (visible)
+    function toggleDisabledItems(disable) {
+	var i;
+
+        if(disable) {
+            // save enabled state of items
+            for(i=0; i < disabledItems.length; i++) {
+                itemStates[i] = disabledItems[i].enabled
+                disabledItems[i].enabled = false
+            }
+        } else {
+            // restore original enabled values
+            for(i=0; i < disabledItems.length; i++)
+                disabledItems[i].enabled = itemStates[i]
+        }
     }
 
     // tell greeter we handle expired passwords,
@@ -61,11 +84,11 @@ Item {
         target: renewalDialog
 
         onOk: {
-            sddmProp.pamResponse(renewalDialog.password)
+            sddmProxy.pamResponse(renewalDialog.password)
         }
 
         onCancel: {
-            sddmProp.cancelPamConv()
+            sddmProxy.cancelPamConv()
         }
 
         onError: {
@@ -83,12 +106,15 @@ Item {
                 // last selected user or input field gets focus back
                 getsBackFocus.forceActiveFocus()
             }
+            // disable specified Main.qml items during password renewal,
+            // e.g. user list, input fields etc.
+            toggleDisabledItems(renewalDialog.visible)
         }
     }
 
     Connections {
 
-        target: sddmProp
+        target: sddmProxy
 
         onLoginSucceeded: {
             // ...will not be reached as greeter stops after successfull login...
@@ -118,8 +144,8 @@ Item {
         // new pam request arrived, e.g. for expired password,
         onPamRequest: {
             // open password renewalDialog dialog and block other GUI
-            renewalDialog.show(requestProp.findNewPwdMessage(),
-                               requestProp.findRepeatPwdMessage())
+            renewalDialog.show(requestData.findNewPwdMessage(),
+                               requestData.findRepeatPwdMessage())
         }
     }
 }

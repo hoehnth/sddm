@@ -1,4 +1,4 @@
-## INTRODUCTION
+## Introduction
 
 SDDM can handle expired passwords during login.
 A password renewal dialog is provided to change the expired password.
@@ -8,7 +8,7 @@ Support for password renewal is provided with two components used in greeter the
 * ``PasswordRenewal.qml`` basic dialog for password renewal, for password input and confirmation
 * ``PasswordConnections.qml`` container for password renewal logic, hides signal handling
 
-## USAGE
+## Usage
 
 For new themes the two components have to be included in the ``Main.qml``.
 See the built-in greeter theme ``Main.qml`` for an example,
@@ -17,9 +17,10 @@ and add this to  ``Main.qml``:
 ```
 // container with password renewal logic
 PasswordConnections {
-    sddmProp: sddm // fix assignment
-    requestProp: request // fix assignment
+    sddmProxy: sddm // fix assignment
+    requestData: request // fix assignment
     renewalDialog: renewal // PasswordRenewal dialog id (see below)
+    disabledItems: [usersContainer] // block these items during password renewal
     pwdItem: listView.currentItem // gets password input from currentItem.password
     getsBackFocus: listView // item where focus falls back after dialog closes
     errMsg: errMessage // if set defines (text) item which shows errors
@@ -41,7 +42,7 @@ PasswordConnections {
             }
 ```
 
-## SOME MORE DETAILS
+## Some more details
 
 The following qml objects are available in ``Main.qml``,
 they are used for password renewal and pam conversation:

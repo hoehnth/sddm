@@ -42,6 +42,7 @@ Rectangle {
         sddmProp: sddm
         requestProp: request
         renewalDialog: renewal
+        disabledItems: [rectangle] // block user input during password renewal
         pwdItem: password // use PasswordBox.text
         getsBackFocus: password
         errMsg: errorMessage
@@ -98,7 +99,6 @@ Rectangle {
             anchors.centerIn: parent
             width: Math.max(320, mainColumn.implicitWidth + 50)
             height: Math.max(320, mainColumn.implicitHeight + 50)
-            enabled: !renewal.visible
 
             source: "rectangle.png"
 
