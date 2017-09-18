@@ -45,9 +45,10 @@ Rectangle {
 
     // container for password renewal logic
     PasswordConnections {
-        sddmProp: sddm
-        requestProp: request
+        sddmProxy: sddm
+        requestData: request
         renewalDialog: renewal
+        disabledItems: [usersContainer] // block user list during password renewal
         pwdItem: listView.currentItem // use listView.currentItem.password
         getsBackFocus: listView
         errMsg: errMessage
@@ -136,8 +137,6 @@ Rectangle {
                     id: usersContainer
                     width: parent.width; height: 300
                     anchors.verticalCenter: parent.verticalCenter
-                    // block user selection during password renewal
-                    enabled: !renewal.visible
 
                     ImageButton {
                         id: prevUser
