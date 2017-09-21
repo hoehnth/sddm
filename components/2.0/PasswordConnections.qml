@@ -29,8 +29,8 @@ import SddmComponents 2.0
 
 Item {
 
-    property var renewalDialog
     property var pwdItem
+    property var renewalDialog
 
     // if provided supposed to have text property
     property var errMsg
@@ -39,11 +39,6 @@ Item {
     // gets focus when password renewal dialog closes
     property var getsBackFocus
 
-    // items which are disabled when password dialog is active
-    property var disabledItems: []
-
-    property var itemStates: [] // bool
-
     TextConstants { id: textConstants }
 
     function clearPwd() {
@@ -51,24 +46,6 @@ Item {
             pwdItem.password = ""
         else if(typeof pwdItem.text !== "undefined")
             pwdItem.text = ""
-    }
-
-    // disable other selected Main.qml items
-    // when password dialog is active (visible)
-    function toggleDisabledItems(disable) {
-	var i;
-
-        if(disable) {
-            // save enabled state of items
-            for(i=0; i < disabledItems.length; i++) {
-                itemStates[i] = disabledItems[i].enabled
-                disabledItems[i].enabled = false
-            }
-        } else {
-            // restore original enabled values
-            for(i=0; i < disabledItems.length; i++)
-                disabledItems[i].enabled = itemStates[i]
-        }
     }
 
     // tell greeter we handle expired passwords,
@@ -91,7 +68,7 @@ Item {
         onError: {
             // unlikely: invalid prompt,
             // i.e. new/repeat prompt for dialog not found in request
-            if(errMsg.objName !== "")
+            if(typeof errMsg !== "undefined")
                 errMsg.text = msg
         }
 
@@ -101,11 +78,9 @@ Item {
                 clearPwd()
 
                 // last selected user or input field gets focus back
-                getsBackFocus.forceActiveFocus()
+                if(typeof getsBackFocus !== "undefined")
+                    getsBackFocus.forceActiveFocus()
             }
-            // disable specified Main.qml items during password renewal,
-            // e.g. user list, input fields etc.
-            toggleDisabledItems(renewalDialog.visible)
         }
     }
 
@@ -118,9 +93,8 @@ Item {
         }
 
         onLoginFailed: {
-            if(txtMsg.objName !== "")
+            if(typeof txtMsg !== "undefined")
             {
-                txtMsg.color = "red"
                 txtMsg.text = textConstants.loginFailed
                 // filter out login failure details
                 if(err_msg != "Authentication failure" &&
