@@ -6,7 +6,7 @@ The greeter frontend will talk with the backend to handle the pam conversation.
 Support for password renewal is provided with two components used in greeter themes:
 
 * ``PasswordRenewal.qml`` basic dialog for password renewal, for password input and confirmation
-* ``PasswordConnections.qml`` container for password renewal logic, hides signal handling
+* ``PasswordConnections.qml`` container for Connections, hides signal handling from themes
 
 ## Usage
 
@@ -17,15 +17,19 @@ and add this to  ``Main.qml``:
 ```
 // container with password renewal logic
 PasswordConnections {
-    sddmProxy: sddm // fix assignment
-    requestData: request // fix assignment
     renewalDialog: renewal // PasswordRenewal dialog id (see below)
-    disabledItems: [usersContainer] // block these items during password renewal
     pwdItem: listView.currentItem // gets password input from currentItem.password
     getsBackFocus: listView // item where focus falls back after dialog closes
     errMsg: errMessage // if set defines (text) item which shows errors
     txtMsg: txtMessage // if set (text) item which shows pam infos
 }
+
+...
+
+        Item {
+            id: usersContainer
+            // block other input during password renewal
+            enabled: !renewal.visible
 
 ...
 
