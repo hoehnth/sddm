@@ -46,11 +46,15 @@ Rectangle {
     // container for password renewal logic
     PasswordConnections {
         renewalDialog: renewal
-        disabledItems: [usersContainer] // block user list during password renewal
         pwdItem: listView.currentItem // use listView.currentItem.password
         getsBackFocus: listView
         errMsg: errMessage
         txtMsg: txtMessage
+    }
+
+    Connections {
+        target: sddm
+        onLoginFailed: txtMessage.color = "red"
     }
 
     Background {
@@ -135,6 +139,7 @@ Rectangle {
                     id: usersContainer
                     width: parent.width; height: 300
                     anchors.verticalCenter: parent.verticalCenter
+                    enabled: !renewal.visible
 
                     ImageButton {
                         id: prevUser
