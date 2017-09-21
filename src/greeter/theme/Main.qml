@@ -45,8 +45,6 @@ Rectangle {
 
     // container for password renewal logic
     PasswordConnections {
-        sddmProxy: sddm
-        requestData: request
         renewalDialog: renewal
         disabledItems: [usersContainer] // block user list during password renewal
         pwdItem: listView.currentItem // use listView.currentItem.password

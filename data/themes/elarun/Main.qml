@@ -39,8 +39,6 @@ Rectangle {
 
     // container for password renewal logic
     PasswordConnections {
-        sddmProp: sddm
-        requestProp: request
         renewalDialog: renewal
         disabledItems: [rectangle] // block user input during password renewal
         pwdItem: pw_entry // use PasswordBox.text
