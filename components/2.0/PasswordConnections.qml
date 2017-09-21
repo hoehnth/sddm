@@ -29,18 +29,15 @@ import SddmComponents 2.0
 
 Item {
 
-    property var sddmProxy: QtObject
-    property var requestData: QtObject
-
-    property var renewalDialog: QtObject
-    property var pwdItem: QtObject
+    property var renewalDialog
+    property var pwdItem
 
     // if provided supposed to have text property
-    property var errMsg: QtObject
-    property var txtMsg: QtObject
+    property var errMsg
+    property var txtMsg
 
     // gets focus when password renewal dialog closes
-    property var getsBackFocus: QtObject
+    property var getsBackFocus
 
     // items which are disabled when password dialog is active
     property var disabledItems: []
@@ -84,11 +81,11 @@ Item {
         target: renewalDialog
 
         onOk: {
-            sddmProxy.pamResponse(renewalDialog.password)
+            sddm.pamResponse(renewalDialog.password)
         }
 
         onCancel: {
-            sddmProxy.cancelPamConv()
+            sddm.cancelPamConv()
         }
 
         onError: {
@@ -114,7 +111,7 @@ Item {
 
     Connections {
 
-        target: sddmProxy
+        target: sddm
 
         onLoginSucceeded: {
             // ...will not be reached as greeter stops after successfull login...
@@ -144,8 +141,8 @@ Item {
         // new pam request arrived, e.g. for expired password,
         onPamRequest: {
             // open password renewalDialog dialog and block other GUI
-            renewalDialog.show(requestData.findNewPwdMessage(),
-                               requestData.findRepeatPwdMessage())
+            renewalDialog.show(request.findNewPwdMessage(),
+                               request.findRepeatPwdMessage())
         }
     }
 }
