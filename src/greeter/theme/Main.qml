@@ -45,7 +45,7 @@ Rectangle {
 
     // container for password renewal logic
     PasswordConnections {
-        renewalDialog: renewal
+        dialog: passwordChange
         pwdItem: listView.currentItem // use listView.currentItem.password
         getsBackFocus: listView
         errMsg: errMessage
@@ -125,8 +125,8 @@ Rectangle {
                 color: "#22000000"
                 clip: true
 
-                PasswordRenewal {
-                    id: renewal
+                PasswordChange {
+                    id: passwordChange
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: usersContainer.top
                     visible: false
@@ -139,7 +139,8 @@ Rectangle {
                     id: usersContainer
                     width: parent.width; height: 300
                     anchors.verticalCenter: parent.verticalCenter
-                    enabled: !renewal.visible
+                    // block user selection during password change
+                    enabled: !passwordChange.visible
 
                     ImageButton {
                         id: prevUser

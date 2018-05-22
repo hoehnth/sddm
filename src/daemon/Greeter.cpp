@@ -1,5 +1,6 @@
 /***************************************************************************
 * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
+* Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -262,7 +263,7 @@ namespace SDDM {
             qDebug() << "Greeter session failed to start";
     }
 
-    void Greeter::onHelperFinished(Auth::HelperExitStatus status) {
+    void Greeter::onHelperFinished(AuthEnums::HelperExitStatus status) {
         // reset flag
         m_started = false;
 
@@ -290,13 +291,15 @@ namespace SDDM {
         }
     }
 
-    void Greeter::authInfo(const QString &message, Auth::Info info) {
+    void Greeter::authInfo(const QString &message, AuthEnums::Info info, int result) {
         Q_UNUSED(info);
+        Q_UNUSED(result);
         qDebug() << "Information from greeter session:" << message;
     }
 
-    void Greeter::authError(const QString &message, Auth::Error error) {
+    void Greeter::authError(const QString &message, AuthEnums::Error error, int result) {
         Q_UNUSED(error);
+        Q_UNUSED(result);
         qWarning() << "Error from greeter session:" << message;
     }
 }

@@ -99,14 +99,14 @@ namespace SDDM {
             if (setsid() < 0) {
                 qCritical("Failed to set pid %lld as leader of the new session and process group: %s",
                           QCoreApplication::applicationPid(), strerror(errno));
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
             }
 
             // take control of the tty
             if (takeControl) {
                 if (ioctl(STDIN_FILENO, TIOCSCTTY) < 0) {
                     qCritical("Failed to take control of the tty: %s", strerror(errno));
-                    exit(Auth::HELPER_OTHER_ERROR);
+                    exit(AuthEnums::HELPER_OTHER_ERROR);
                 }
             }
         }
@@ -118,11 +118,11 @@ namespace SDDM {
             int fd = ::open(qPrintable(ns), O_RDONLY);
             if (fd < 0) {
                 qCritical("open(%s) failed: %s", qPrintable(ns), strerror(errno));
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
             }
             if (setns(fd, 0) != 0) {
                 qCritical("setns(open(%s), 0) failed: %s", qPrintable(ns), strerror(errno));
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
             }
             ::close(fd);
         }
@@ -137,7 +137,7 @@ namespace SDDM {
             bufsize = 16384;
         char *buffer = (char *)malloc(bufsize);
         if (buffer == NULL)
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
         int err = getpwnam_r(username.constData(), &pw, buffer, bufsize, &rpw);
         if (rpw == NULL) {
             if (err == 0)
@@ -145,12 +145,12 @@ namespace SDDM {
             else
                 qCritical() << "getpwnam_r(" << username << ") failed with error: " << strerror(err);
             free(buffer);
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
         }
         if (setgid(pw.pw_gid) != 0) {
             qCritical() << "setgid(" << pw.pw_gid << ") failed for user: " << username;
             free(buffer);
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
         }
 
 #ifdef USE_PAM
@@ -164,7 +164,7 @@ namespace SDDM {
             if ((n_pam_groups = getgroups(n_pam_groups, pam_groups)) == -1) {
                 qCritical() << "getgroups() failed to fetch supplemental"
                             << "PAM groups for user:" << username;
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
             }
         } else {
             n_pam_groups = 0;
@@ -182,7 +182,7 @@ namespace SDDM {
                 qCritical() << "getgrouplist(" << username << ", " << pw.pw_gid
                             << ") failed";
                 free(buffer);
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
             }
         }
 
@@ -199,7 +199,7 @@ namespace SDDM {
             if (setgroups(n_groups, groups) != 0) {
                 qCritical() << "setgroups() failed for user: " << username;
                 free(buffer);
-                exit (Auth::HELPER_OTHER_ERROR);
+                exit (AuthEnums::HELPER_OTHER_ERROR);
             }
             delete[] groups;
         }
@@ -211,7 +211,7 @@ namespace SDDM {
         if (initgroups(pw.pw_name, pw.pw_gid) != 0) {
             qCritical() << "initgroups(" << pw.pw_name << ", " << pw.pw_gid << ") failed for user: " << username;
             free(buffer);
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
         }
 
 #endif /* USE_PAM */
@@ -219,13 +219,13 @@ namespace SDDM {
         if (setuid(pw.pw_uid) != 0) {
             qCritical() << "setuid(" << pw.pw_uid << ") failed for user: " << username;
             free(buffer);
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
         }
         if (chdir(pw.pw_dir) != 0) {
             qCritical() << "chdir(" << pw.pw_dir << ") failed for user: " << username;
             qCritical() << "verify directory exist and has sufficient permissions";
             free(buffer);
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
         }
         free(buffer);
 
