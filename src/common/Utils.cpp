@@ -77,7 +77,9 @@ namespace SDDM {
                 }
             }
             file.close();
-        }
+        } else
+            qDebug().noquote() << "Failed to open" << localeFile;
+
         if (langEmpty)
             env.insert(QStringLiteral("LANG"), QStringLiteral("C"));
 
