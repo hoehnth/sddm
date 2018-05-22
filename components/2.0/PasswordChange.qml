@@ -20,7 +20,7 @@
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 * OR OTHER DEALINGS IN THE SOFTWARE.
 *
-* Note: simple password input dialog for user with expired password (pam conversation)
+* Note: simple password change dialog for user with expired password (pam conversation)
 *
 ***************************************************************************/
 
@@ -35,8 +35,8 @@ import SddmComponents 2.0
 FocusScope {
 
     id: container
-    height: 230
-    width: 600
+    height: infosHeight+200
+    width: infosWidth+120
 
     // access to password input
     readonly property string password: pwdInput.text
@@ -144,7 +144,6 @@ FocusScope {
 
         id: dialog
         anchors.fill: parent
-        //radius: 16
 
         ColumnLayout {
 
