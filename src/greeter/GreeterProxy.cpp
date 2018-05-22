@@ -42,7 +42,7 @@ namespace SDDM {
         bool canSuspend { false };
         bool canHibernate { false };
         bool canHybridSleep { false };
-        bool pwdRenewal { false };
+        bool enablePwdChange { false };
     };
 
     GreeterProxy::GreeterProxy(const QString &socket, QObject *parent) : QObject(parent), d(new GreeterProxyPrivate()) {
@@ -70,9 +70,9 @@ namespace SDDM {
         d->sessionModel = model;
     }
 
-    void GreeterProxy::enablePwdRenewal() {
-        qDebug() << "Enabled password renewal for theme.";
-        d->pwdRenewal = true;
+    void GreeterProxy::enablePwdChange() {
+        qDebug() << "Enable password change for theme";
+        d->enablePwdChange = true;
     }
 
     /** AuthRequest for exchange of PAM prompts/responses
@@ -149,7 +149,7 @@ namespace SDDM {
 
     // todo: mind session index like for login
     void GreeterProxy::pamResponse(const QString &newPassword) {
-        // send new (renewal) password to daemon for pam conv
+        // send new password to daemon for pam conv
         SocketWriter(d->socket) << quint32(GreeterMessages::PamResponse) << newPassword;
     }
 
@@ -269,8 +269,8 @@ namespace SDDM {
 
                     // compatibility with old themes: cancel pam
                     // conversation if theme does not support it
-                    if(!d->pwdRenewal) {
-                        qDebug() << "Cancled password renewal. Not supported by theme.";
+                    if(!d->enablePwdChange) {
+                        qDebug() << "Cancled password change. Not supported by theme.";
                         cancelPamConv();
                     } else
                         // otherwise send pam messages to GUI
