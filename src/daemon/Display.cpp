@@ -84,7 +84,7 @@ namespace SDDM {
         connect(this, SIGNAL(loginSucceeded(QLocalSocket*)), m_socketServer, SLOT(loginSucceeded(QLocalSocket*)));
         // pam (conversation) info/error shown in greeter
         connect(this, SIGNAL(pamConvMsg(QLocalSocket*,const QString&,int)), m_socketServer, SLOT(pamConvMsg(QLocalSocket*,const QString&,int)));
-        // new request from pam for e.g. password renewal (expired password)
+        // new request from pam for e.g. password change (password expired)
         connect(this, SIGNAL(pamRequest(QLocalSocket*,const AuthRequest * const)), m_socketServer, SLOT(pamRequest(QLocalSocket*,const AuthRequest * const)));
     }
 
@@ -245,7 +245,7 @@ namespace SDDM {
         startAuth(user, password, session);
     }
 
-    // password renewal, got response from greeter
+    // password change, got response from greeter
     void Display::setPamResponse(const QString &password) {
         qDebug() << "Display: set pam response with new password";
         m_auth->request()->setChangeResponse(password);
@@ -253,7 +253,7 @@ namespace SDDM {
             m_auth->request()->done();
     }
 
-    // cancel pam (password renewal) conversation
+    // cancel pam (password change) conversation
     // because user canceled password dialog in greeter
     void Display::cancelPamConv() {
         m_auth->request()->cancel();
@@ -483,12 +483,12 @@ namespace SDDM {
         // see what we got from pam conv() and will be send to greeter
         qDebug() << "Display: requestChanged with " << n_prompts << " prompts from Auth";
 
-        // handle password renewal case (gets response from greeter),
+        // handle password change case (gets response from greeter),
         // will finish with request->done() later in setPamResponse()
         if (m_auth->request()->findPrompt(AuthPrompt::CHANGE_PASSWORD))
         {
             if(m_socket)
-                // send password renewal request to greeter (via SocketServer)
+                // send password change request to greeter (via SocketServer)
                 emit pamRequest(m_socket, m_auth->request());
             return;
         }
