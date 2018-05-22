@@ -75,7 +75,7 @@ Rectangle {
             id: dialogImg
             anchors.top: parent.top
             anchors.left: parent.left
-            anchors.margins: 64
+            anchors.margins: 32
             width: passwordChange.width+32
             height: passwordChange.height+32
             visible: passwordChange.visible
@@ -89,6 +89,7 @@ Rectangle {
             visible: false
             radius: 8
             color: "transparent"
+            titleTextColor: "black"
         }
 
         Image {

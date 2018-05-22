@@ -20,7 +20,7 @@
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 * OR OTHER DEALINGS IN THE SOFTWARE.
 *
-* Note: container for password renewal logic
+* Note: container for password change logic
 *
 ***************************************************************************/
 
@@ -38,7 +38,7 @@ Item {
     property var errMsg
     property var txtMsg
 
-    // gets focus when password renewal dialog closes
+    // gets focus when password change dialog closes
     property var getsBackFocus
 
     property int pam_maxtries_result: 11 // TODO: enum
@@ -54,11 +54,11 @@ Item {
             getsBackFocus.forceActiveFocus()
     }
 
-    // tell greeter we handle expired passwords,
-    // default is no password renewal in old themes
-    Component.onCompleted: sddm.enablePwdRenewal()
+    // tell greeter we handle password change (password expired),
+    // default  in old themes is no password change
+    Component.onCompleted: sddm.enablePwdChange()
 
-    // handles password renewal events
+    // handles password change events
     Connections {
 
         target: dialog
@@ -98,7 +98,7 @@ Item {
 
         onLoginFailed: {
             dialog.close()
-            clearPwd() // picture box input
+            clearPwd() // picture box input field
             // have a text field to show error output?
             if(typeof txtMsg !== "undefined") {
                 // explain why password change dialog suddenly disappears
