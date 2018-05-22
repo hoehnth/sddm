@@ -1,4 +1,5 @@
 /***************************************************************************
+* Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
 * Copyright (c) 2014-2015 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
 * Copyright (c) 2014 Martin Bříza <mbriza@redhat.com>
 * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
@@ -63,9 +64,9 @@ namespace SDDM {
         connect(m_auth, SIGNAL(requestChanged()), this, SLOT(slotRequestChanged()));
         connect(m_auth, SIGNAL(authentication(QString,bool)), this, SLOT(slotAuthenticationFinished(QString,bool)));
         connect(m_auth, SIGNAL(session(bool)), this, SLOT(slotSessionStarted(bool)));
-        connect(m_auth, SIGNAL(finished(Auth::HelperExitStatus)), this, SLOT(slotHelperFinished(Auth::HelperExitStatus)));
-        connect(m_auth, SIGNAL(info(QString,Auth::Info)), this, SLOT(slotAuthInfo(QString,Auth::Info)));
-        connect(m_auth, SIGNAL(error(QString,Auth::Error)), this, SLOT(slotAuthError(QString,Auth::Error)));
+        connect(m_auth, SIGNAL(finished(AuthEnums::HelperExitStatus)), this, SLOT(slotHelperFinished(AuthEnums::HelperExitStatus)));
+        connect(m_auth, SIGNAL(info(QString,AuthEnums::Info,int)), this, SLOT(slotAuthInfo(QString,AuthEnums::Info,int)));
+        connect(m_auth, SIGNAL(error(QString,AuthEnums::Error,int)), this, SLOT(slotAuthError(QString,AuthEnums::Error,int)));
 
         // restart display after display server ended
         connect(m_displayServer, SIGNAL(started()), this, SLOT(displayServerStarted()));
@@ -79,10 +80,10 @@ namespace SDDM {
         connect(m_socketServer, SIGNAL(cancelPamConv()), this, SLOT(cancelPamConv()));
 
         // connect login result signals
-        connect(this, SIGNAL(loginFailed(QLocalSocket*,const QString&)), m_socketServer, SLOT(loginFailed(QLocalSocket*,const QString&)));
+        connect(this, SIGNAL(loginFailed(QLocalSocket*,const QString&,int)), m_socketServer, SLOT(loginFailed(QLocalSocket*,const QString&,int)));
         connect(this, SIGNAL(loginSucceeded(QLocalSocket*)), m_socketServer, SLOT(loginSucceeded(QLocalSocket*)));
         // pam (conversation) info/error shown in greeter
-        connect(this, SIGNAL(pamConvMsg(QLocalSocket*,const QString&)), m_socketServer, SLOT(pamConvMsg(QLocalSocket*,const QString&)));
+        connect(this, SIGNAL(pamConvMsg(QLocalSocket*,const QString&,int)), m_socketServer, SLOT(pamConvMsg(QLocalSocket*,const QString&,int)));
         // new request from pam for e.g. password renewal (expired password)
         connect(this, SIGNAL(pamRequest(QLocalSocket*,const AuthRequest * const)), m_socketServer, SLOT(pamRequest(QLocalSocket*,const AuthRequest * const)));
     }
@@ -247,7 +248,7 @@ namespace SDDM {
     // password renewal, got response from greeter
     void Display::setPamResponse(const QString &password) {
         qDebug() << "Display: set pam response with new password";
-        m_auth->request()->setChangeResponse(m_passPhrase, password);
+        m_auth->request()->setChangeResponse(password);
         if(m_auth->request()->finishAutomatically() ==  false)
             m_auth->request()->done();
     }
@@ -405,53 +406,65 @@ namespace SDDM {
 
             // avoid to emit loginFailed twice
             if(!m_failed) {
-                emit loginFailed(m_socket, QString());
+                emit loginFailed(m_socket, QString(),0);
                 m_failed = true;
             }
         }
+        m_socket = nullptr;
     }
 
     // presentable to the user
-    void Display::slotAuthInfo(const QString &message, Auth::Info info) {
-        qWarning() << "Authentication information:" << message;
+    void Display::slotAuthInfo(const QString &message, AuthEnums::Info info, int result) {
 
-        if (!m_socket) {
-            qWarning() << "Greeter socket down!";
+        qWarning().noquote().nospace() << "Authentication information: message = \"" << message
+                                       << "\", type = " << Utils::authInfoString(info)
+                                       << ", result = " << Utils::pamResultString(result)
+                                       << " (rc=" << result << ")";
+
+        if(!m_socket) {
+            qWarning() << "Greeter socket down";
             return;
         }
 
-        if(info == Auth::INFO_PASS_CHANGE_REQUIRED ||
-           info == Auth::INFO_PAM_CONV)
+        if(info == AuthEnums::INFO_PAM_CONV)
         {
             // send pam conversation message to greeter
-            emit pamConvMsg(m_socket, message);
+            emit pamConvMsg(m_socket, message, result);
         }
     }
 
-    void Display::slotAuthError(const QString &message, Auth::Error error) {
-        // TODO: handle more errors
-        qWarning() << "Authentication error:" << message;
+    void Display::slotAuthError(const QString &message, AuthEnums::Error error, int result) {
+
+        qWarning().noquote().nospace() << "Authentication error: message = \"" << message
+                                       << "\", type = " << Utils::authErrorString(error)
+                                       << ", result = " << Utils::pamResultString(result)
+                                       << " (rc=" << result << ")";
+
+        if (error == AuthEnums::ERROR_AUTHENTICATION)
+            m_failed = true;
 
         if (!m_socket) {
             qWarning() << "Greeter socket down!";
             return;
         }
 
-        // avoid to emit loginFailed twice
-        if (error == Auth::ERROR_AUTHENTICATION && !m_failed)
-        {
-            m_failed = true;
-            emit loginFailed(m_socket, message);
-        }
+        // failed login only when result not PAM_SUCCESS,
+        // i.e. error is of type ERROR_AUTHENTICATION
+        if (error == AuthEnums::ERROR_AUTHENTICATION)
+            emit loginFailed(m_socket, message, result);
+        else if(error == AuthEnums::ERROR_PAM_CONV)
+                emit pamConvMsg(m_socket, message, result);
+
+        // ignore internal errors, no emit
     }
 
-    void Display::slotHelperFinished(Auth::HelperExitStatus status) {
+    void Display::slotHelperFinished(AuthEnums::HelperExitStatus status) {
         // Don't restart greeter and display server unless sddm-helper exited
         // with an internal error or the user session finished successfully,
         // we want to avoid greeter from restarting when an authentication
         // error happens (in this case we want to show the message from the
         // greeter
-        if (status != Auth::HELPER_AUTH_ERROR)
+        if (status != AuthEnums::HELPER_AUTH_ERROR)
             stop();
     }
 
@@ -460,44 +473,30 @@ namespace SDDM {
     void Display::slotRequestChanged() {
 
         int n_prompts = m_auth->request()->prompts().count();
-        AuthPrompt::Type type_prompt0(AuthPrompt::NONE);
 
-        // get type if we have a prompt
-        if(n_prompts>0)
-            type_prompt0 = m_auth->request()->prompts()[0]->type();
         // ignore empty requests
-        else return;
+        if(n_prompts<=0) return;
 
         // see what we got from pam conv() and will be send to greeter
         qDebug() << "Display: requestChanged with " << n_prompts << " prompts from Auth";
 
-        // respond to login password request
-        if (n_prompts == 1 && type_prompt0 == AuthPrompt::LOGIN_PASSWORD) {
-            m_auth->request()->prompts()[0]->setResponse(qPrintable(m_passPhrase));
-            m_auth->request()->done();
-            return;
-        }
-
-        // handle request with user name and password prompts
-        if (n_prompts == 2 && type_prompt0 == AuthPrompt::LOGIN_USER )
-        {
-            m_auth->request()->prompts()[0]->setResponse(qPrintable(m_auth->user()));
-            m_auth->request()->prompts()[1]->setResponse(qPrintable(m_passPhrase));
-            m_auth->request()->done();
-            return;
-        }
-
         // handle password renewal case (gets response from greeter),
         // will finish with request->done() later in setPamResponse()
-        if (n_prompts >= 2 &&
-            m_auth->request()->findPrompt(AuthPrompt::CHANGE_NEW) &&
-            m_auth->request()->findPrompt(AuthPrompt::CHANGE_REPEAT))
+        if (m_auth->request()->findPrompt(AuthPrompt::CHANGE_PASSWORD))
         {
             if(m_socket)
                 // send password renewal request to greeter (via SocketServer)
                 emit pamRequest(m_socket, m_auth->request());
-
             return;
+        }
+
+        // handle requests with user name and password prompts, respond to login password request
+        if ((m_auth->request()->findPrompt(AuthPrompt::LOGIN_USER) ||
+             m_auth->request()->findPrompt(AuthPrompt::LOGIN_PASSWORD)) &&
+             m_auth->request()->setLoginResponse(m_auth->user(), m_passPhrase) == true)
+        {
+             m_auth->request()->done();
+             return;
         }
 
         qWarning() << "Display: Unable to handle Auth request!";

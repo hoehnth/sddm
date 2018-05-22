@@ -44,8 +44,8 @@ namespace SDDM {
 
     public slots:
         Request request(const Request &request, bool &cancel);
-        void info(const QString &message, Auth::Info type);
-        void error(const QString &message, Auth::Error type);
+        void info(const QString &message, AuthEnums::Info type, int result);
+        void error(const QString &message, AuthEnums::Error type, int result);
         QProcessEnvironment authenticated(const QString &user);
         void sessionOpened(bool success);
 
