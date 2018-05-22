@@ -1,11 +1,11 @@
 ## Introduction
 
 SDDM can handle expired passwords during login.
-A password renewal dialog is provided to change the expired password.
+A password dialog is provided to change the expired password.
 The greeter frontend will talk with the backend to handle the pam conversation.
-Support for password renewal is provided with two components used in greeter themes:
+Support for password change is provided with two components used in greeter themes:
 
-* ``PasswordRenewal.qml`` basic dialog for password renewal, for password input and confirmation
+* ``PasswordChange.qml`` basic dialog for password change via pam conversation
 * ``PasswordConnections.qml`` container for Connections, hides signal handling from themes
 
 ## Usage
@@ -15,10 +15,10 @@ See the built-in greeter theme ``Main.qml`` for an example,
 and add this to  ``Main.qml``:
 
 ```
-// container with password renewal logic
+// container for password change logic
 PasswordConnections {
-    renewalDialog: renewal // PasswordRenewal dialog id (see below)
-    pwdItem: listView.currentItem // gets password input from currentItem.password
+    dialog: passwordChange // PasswordChange dialog id (see below)
+    pwdItem: listView.currentItem gets password input field from currentItem.password
     getsBackFocus: listView // item where focus falls back after dialog closes
     errMsg: errMessage // if set defines (text) item which shows errors
     txtMsg: txtMessage // if set (text) item which shows pam infos
@@ -26,37 +26,38 @@ PasswordConnections {
 
 ...
 
-        Item {
-            id: usersContainer
-            // block other input during password renewal
-            enabled: !renewal.visible
+        // password change dialog
+        PasswordChange {
+            id: passwordChange
+            // customize here e.g.:
+            //anchors.horizontalCenter: parent.horizontalCenter
+            //anchors.bottom: usersContainer.top
+            //visible: false
+            //color: "#22888888"
+            //promptColor: "white"
+            //infosColor: "lightcoral"
+        }
 
 ...
 
-            // password renewal dialog
-            PasswordRenewal {
-                id: renewal
-                // customize here e.g.:
-                //anchors.horizontalCenter: parent.horizontalCenter
-                //anchors.bottom: usersContainer.top
-                //visible: false
-                //color: "#22888888"
-                //promptColor: "white"
-                //infosColor: "lightcoral"
-            }
+        Item {
+            id: usersContainer
+            // block user selection during password change
+            enabled: !passwordChange.visible
 ```
 
 ## Some more details
 
 The following qml objects are available in ``Main.qml``,
-they are used for password renewal and pam conversation:
+they are used for password change and pam conversation:
 
 ### Signals
 
 Signals coming from daemon backend:
 
-* ``pamConvMsg(pam_msg)``
+* ``pamConvMsg(pam_msg, result)``
 Provides infos/errors from (pam) backend conversation to present to user.
+Results from the pam function e.g. pam_authentication are provided for evaluation.
 
 * ``pamRequest()``
 New request from (pam) backend, user response is required.
@@ -70,9 +71,9 @@ Prompts from (pam) backend with messages from pam_conv.
 
 Responses from greeter frontend to the backend:
 
-* ``sddm.enablePwdRenewal()``
-The theme tells the greeter it can handle password renewal (has a dialog and logic as described above).
-For themes which do not have a password renewal dialog, this method is not called.
+* ``sddm.enablePwdChange()``
+The theme tells the greeter it can handle password change (has a dialog and logic as described above).
+For themes which do not have a password change capabiliy, this method is not called.
 In that case the pam conversation is just canceled (otherwise pam_conv user session sits there waiting for password response).
 This will keep compatibility to (older) themes which do not support expired passwords yet.
 
