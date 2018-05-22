@@ -29,8 +29,10 @@ import SddmComponents 2.0
 
 Item {
 
+    property var dialog
+
+    // picture box, password field
     property var pwdItem
-    property var renewalDialog
 
     // if provided supposed to have text property
     property var errMsg
@@ -39,6 +41,8 @@ Item {
     // gets focus when password renewal dialog closes
     property var getsBackFocus
 
+    property int pam_maxtries_result: 11 // TODO: enum
+
     TextConstants { id: textConstants }
 
     function clearPwd() {
@@ -46,6 +50,8 @@ Item {
             pwdItem.password = ""
         else if(typeof pwdItem.text !== "undefined")
             pwdItem.text = ""
+        if(typeof getsBackFocus !== "undefined")
+            getsBackFocus.forceActiveFocus()
     }
 
     // tell greeter we handle expired passwords,
@@ -55,10 +61,10 @@ Item {
     // handles password renewal events
     Connections {
 
-        target: renewalDialog
+        target: dialog
 
         onOk: {
-            sddm.pamResponse(renewalDialog.password)
+            sddm.pamResponse(dialog.password)
         }
 
         onCancel: {
@@ -73,10 +79,8 @@ Item {
         }
 
         onVisibleChanged: {
-            if(!renewalDialog.visible) {
-                renewalDialog.clear() // clear pam infos
+            if(!dialog.visible) {
                 clearPwd()
-
                 // last selected user or input field gets focus back
                 if(typeof getsBackFocus !== "undefined")
                     getsBackFocus.forceActiveFocus()
@@ -89,34 +93,40 @@ Item {
         target: sddm
 
         onLoginSucceeded: {
-            // ...will not be reached as greeter stops after successfull login...
+            // ...not reached as greeter stops after login succeeded...
         }
 
         onLoginFailed: {
-            if(typeof txtMsg !== "undefined")
-            {
-                txtMsg.text = textConstants.loginFailed
-                // filter out login failure details
-                if(err_msg != "Authentication failure" &&
-                   err_msg != "Password change aborted." &&
-                   err_msg != "Authentication token manipulation error")
-                   txtMsg.text += "\n" + err_msg
+            dialog.close()
+            clearPwd() // picture box input
+            // have a text field to show error output?
+            if(typeof txtMsg !== "undefined") {
+                // explain why password change dialog suddenly disappears
+                // pam_chauthtok failed with PAM_MAXTRIES
+                if(result == pam_maxtries_result)
+                    txtMsg.text = textConstants.pamMaxtriesError
+                else // filter out login failure details
+                    txtMsg.text = textConstants.loginFailed
             }
-            renewalDialog.visible = false
-            clearPwd()
         }
 
-        // show messages from pam conversation (for expired passwords)
+        // show messages from pam conversation
         onPamConvMsg: {
-            // from signal pamConvMsg(pam_msg)
-            renewalDialog.append(pam_msg)
+            // from signal pamConvMsg(pam_msg, result)
+            dialog.append(pam_msg)
+            /*
+            // hint for user why current password is asked again
+            if(result == pam_maxtries_result)
+                dialog.append(textConstants.pamMaxtriesInfo)
+            */
         }
 
-        // new pam request arrived, e.g. for expired password,
+        // new prompt arrived from pam_chauthtok,
+        // e.g. for password change, prompt for current or new password
         onPamRequest: {
-            // open password renewalDialog dialog and block other GUI
-            renewalDialog.show(request.findNewPwdMessage(),
-                               request.findRepeatPwdMessage())
+            // open password change dialog and block other GUI
+            // NOTE: only one prompt per request supported!
+            dialog.newPrompt(request.findChangePwdMessage() /* prompt message */)
         }
     }
 }

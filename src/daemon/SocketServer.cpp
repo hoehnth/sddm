@@ -1,4 +1,5 @@
 /***************************************************************************
+* Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
 * Copyright (c) 2015 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
 * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
 *
@@ -45,7 +46,7 @@ namespace SDDM {
         if (m_server)
             return false;
 
-        QString socketName = QStringLiteral("sddm-%1-%2").arg(displayName).arg(generateName(6));
+        QString socketName = QStringLiteral("sddm-%1-%2").arg(displayName).arg(Utils::generateName(6));
 
         // log message
         qDebug() << "Socket server starting...";
@@ -209,23 +210,28 @@ namespace SDDM {
 
     // from (pam) backend to greeter
 
-    void SocketServer::loginFailed(QLocalSocket *socket, const QString &message) {
-        SocketWriter(socket) << quint32(DaemonMessages::LoginFailed) << message;
+    void SocketServer::loginFailed(QLocalSocket *socket, const QString &message, int result) {
+        if(socket && socket->isValid())
+            SocketWriter(socket) << quint32(DaemonMessages::LoginFailed) << message << result;
     }
 
     void SocketServer::loginSucceeded(QLocalSocket *socket) {
-        SocketWriter(socket) << quint32(DaemonMessages::LoginSucceeded);
+        if(socket && socket->isValid())
+            SocketWriter(socket) << quint32(DaemonMessages::LoginSucceeded);
     }
 
-    void SocketServer::pamConvMsg(QLocalSocket *socket, const QString &message) {
+    void SocketServer::pamConvMsg(QLocalSocket *socket, const QString &message, int result) {
         // send pam converse message to greeter
-        SocketWriter(socket) << quint32(DaemonMessages::PamConvMsg) << message;
+        if(socket && socket->isValid())
+            SocketWriter(socket) << quint32(DaemonMessages::PamConvMsg) << message << result;
     }
 
     void SocketServer::pamRequest(QLocalSocket *socket, const AuthRequest * const pam_request) {
-        // convert AuthRequest to simple Request
-        Request request = pam_request->request();
-        // send pam request to greeter
-        SocketWriter(socket) << quint32(DaemonMessages::PamRequest) << request;
+        if(socket && socket->isValid()) {
+            // convert AuthRequest to simple Request
+            Request request = pam_request->request();
+            // send pam request to greeter
+            SocketWriter(socket) << quint32(DaemonMessages::PamRequest) << request;
+        }
     }
 }

@@ -20,7 +20,8 @@
 
 #include "PasswdBackend.h"
 
-#include "AuthMessages.h"
+#include "AuthEnums.h"
+#include "AuthBase.h"
 #include "HelperApp.h"
 
 #include <QtCore/QDebug>
@@ -73,7 +74,7 @@ namespace SDDM {
 
         struct passwd *pw = getpwnam(qPrintable(m_user));
         if (!pw) {
-            m_app->error(QStringLiteral("Wrong user/password combination"), Auth::ERROR_AUTHENTICATION);
+            m_app->error(QStringLiteral("Wrong user/password combination"), AuthEnums::ERROR_AUTHENTICATION, 0);
             return false;
         }
         const char *system_passwd = pw->pw_passwd;
@@ -96,7 +97,7 @@ namespace SDDM {
             return true;
         }
 
-        m_app->error(QStringLiteral("Wrong user/password combination"), Auth::ERROR_AUTHENTICATION);
+        m_app->error(QStringLiteral("Wrong user/password combination"), AuthEnums::ERROR_AUTHENTICATION, 0);
         return false;
     }
 

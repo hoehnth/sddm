@@ -1,6 +1,7 @@
 /*
  * PAM authentication backend
- * Copyright (C) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +24,7 @@
 #include "HelperApp.h"
 #include "UserSession.h"
 #include "Auth.h"
+#include "Utils.h"
 
 #include <QtCore/QString>
 #include <QtCore/QDebug>
@@ -30,51 +32,26 @@
 #include <stdlib.h>
 
 namespace SDDM {
-    static Request loginRequest {
-        {   { AuthPrompt::LOGIN_USER, QStringLiteral("login:"), false },
-            { AuthPrompt::LOGIN_PASSWORD, QStringLiteral("Password: "), true }
-        }
-    };
-
-    static Request changePassRequest {
-        {   { AuthPrompt::CHANGE_CURRENT, QStringLiteral("(current) UNIX password: "), true },
-            { AuthPrompt::CHANGE_NEW, QStringLiteral("New password: "), true },
-            { AuthPrompt::CHANGE_REPEAT, QStringLiteral("Retype new password: "), true }
-        }
-    };
-
-    static Request changePassNoOldRequest {
-        {   { AuthPrompt::CHANGE_NEW, QStringLiteral("New password: "), true },
-            { AuthPrompt::CHANGE_REPEAT, QStringLiteral("Retype new password: "), true }
-        }
-    };
 
     static Request invalidRequest { {} };
 
     static Prompt invalidPrompt {};
 
-    PamData::PamData() { }
+    PamData::PamData(PamWorkState &ref) : m_workState(ref) { }
 
     AuthPrompt::Type PamData::detectPrompt(const struct pam_message* msg) const {
-        if (msg->msg_style == PAM_PROMPT_ECHO_OFF) {
-            QString message = QString::fromLocal8Bit(msg->msg);
-            if (message.indexOf(QRegExp(QStringLiteral("\\bpassword\\b"), Qt::CaseInsensitive)) >= 0) {
-                if (message.indexOf(QRegExp(QStringLiteral("\\b(re-?(enter|type)|again|confirm|repeat)\\b"), Qt::CaseInsensitive)) >= 0) {
-                    return AuthPrompt::CHANGE_REPEAT;
-                }
-                else if (message.indexOf(QRegExp(QStringLiteral("\\bnew\\b"), Qt::CaseInsensitive)) >= 0) {
-                    return AuthPrompt::CHANGE_NEW;
-                }
-                else if (message.indexOf(QRegExp(QStringLiteral("\\b(old|current)\\b"), Qt::CaseInsensitive)) >= 0) {
-                    return AuthPrompt::CHANGE_CURRENT;
-                }
-                else {
-                    return AuthPrompt::LOGIN_PASSWORD;
-                }
-            }
+        if(m_workState == STATE_AUTHENTICATE) {
+            if (msg->msg_style == PAM_PROMPT_ECHO_OFF)
+                return AuthPrompt::LOGIN_PASSWORD;
+            else if (msg->msg_style == PAM_PROMPT_ECHO_ON)
+                return AuthPrompt::LOGIN_USER;
         }
-        else {
-            return AuthPrompt::LOGIN_USER;
+        else if(m_workState == STATE_CHANGEAUTHTOK) {
+            if (msg->msg_style == PAM_PROMPT_ECHO_OFF)
+                return AuthPrompt::CHANGE_PASSWORD;
+            else if (msg->msg_style == PAM_PROMPT_ECHO_ON)
+                // unlikely but handle
+                return AuthPrompt::LOGIN_USER;
         }
 
         return AuthPrompt::UNKNOWN;
@@ -134,15 +111,14 @@ namespace SDDM {
         // we'll predict what will come next
         if (predict) {
             AuthPrompt::Type type = detectPrompt(msg);
+            m_sent = false;
+
             switch (type) {
                 case AuthPrompt::LOGIN_USER:
-                    m_currentRequest = Request(loginRequest);
-                    return true;
-                case AuthPrompt::CHANGE_CURRENT:
-                    m_currentRequest = Request(changePassRequest);
-                    return true;
-                case AuthPrompt::CHANGE_NEW:
-                    m_currentRequest = Request(changePassNoOldRequest);
+                case AuthPrompt::LOGIN_PASSWORD:
+                case AuthPrompt::CHANGE_PASSWORD:
+                    m_currentRequest = Request( { { type, QString::fromLocal8Bit(msg->msg),
+                                                    type == AuthPrompt::LOGIN_USER ? true : false } } );
                     return true;
                 default:
                     break;
@@ -150,59 +126,11 @@ namespace SDDM {
         }
 
         // or just add whatever comes exactly as it comes
-        m_currentRequest.prompts.append(Prompt(detectPrompt(msg), QString::fromLocal8Bit(msg->msg), msg->msg_style == PAM_PROMPT_ECHO_OFF));
+        m_currentRequest.prompts.append(Prompt(detectPrompt(msg),
+                                        QString::fromLocal8Bit(msg->msg),
+                                        msg->msg_style == PAM_PROMPT_ECHO_OFF));
 
         return true;
-    }
-
-    /*
-     * Distinguish types of pam conversation infos.
-     *
-     * Currently different info types are not really used (see \ref Display::slotAuthInfo which
-     * just fires one signal for all info types). Just builds new request for "changing" keyword.
-     */
-    Auth::Info PamData::handleInfo(const struct pam_message* msg, bool &newRequest, bool predict) {
-        if (QString::fromLocal8Bit(msg->msg).indexOf(QRegExp(QStringLiteral("^Changing password for [^ ]+$"))) >= 0)
-        {
-            if (predict) {
-                m_currentRequest = Request(changePassRequest);
-                newRequest = true;
-                m_sent = false;
-            }
-            return Auth::INFO_PASS_CHANGE_REQUIRED;
-        }
-        return Auth::INFO_PAM_CONV;
-    }
-
-    /* Figure out if pam (chAuthTok) sent an error or just an info during conversation
-     *
-     * Real error message e.g. "Password change aborted." But most are just info messages
-     * e.g. "change your password ... (administrator enforced)" with type PAM_ERROR_MSG.
-     */
-    Auth::Error PamData::handleErr(const struct pam_message* msg, bool &newRequest, bool predict) {
-        // bad password during password renewal (for expired password)
-        if (QString::fromLocal8Bit(msg->msg).startsWith(QStringLiteral("BAD PASSWORD:")))
-        {
-            if (predict)
-            {
-                // prepare new (empty) request, new password prompt will follow
-                m_currentRequest = Request();
-                newRequest = false;
-                m_sent = false;
-            }
-            return Auth::ERROR_NONE;
-        }
-
-        if(QString::fromLocal8Bit(msg->msg).startsWith(QStringLiteral("Password change aborted."))) {
-            return Auth::ERROR_AUTHENTICATION;
-        }
-
-        // first login for user, home dir will be created, ignore error message (which would shutdown sddm)
-        if(QString::fromLocal8Bit(msg->msg).startsWith(QStringLiteral("Unable to create and initialize directory"))) {
-            return Auth::ERROR_NONE;
-        }
-
-        return Auth::ERROR_NONE;
     }
 
     /*
@@ -244,13 +172,14 @@ namespace SDDM {
         m_sent = true;
     }
 
-
-
-
     PamBackend::PamBackend(HelperApp *parent)
             : Backend(parent)
-            , m_data(new PamData())
-            , m_pam(new PamHandle(this)) {
+            , m_data(new PamData(m_workState))
+            , m_pam(new PamHandle(m_workState, this)) {
+
+        // inform daemon in case pam_chauthtok fails with PAM_MAXTRIES
+        QObject::connect(m_pam, SIGNAL(error(QString, AuthEnums::Error, int)),
+                         parent, SLOT(error(QString, AuthEnums::Error, int)));
     }
 
     PamBackend::~PamBackend() {
@@ -272,7 +201,7 @@ namespace SDDM {
         result = m_pam->start(service, user);
 
         if (!result)
-            m_app->error(m_pam->errorString(), Auth::ERROR_INTERNAL);
+            m_app->error(m_pam->errorString(), AuthEnums::ERROR_INTERNAL, m_pam->getResult());
 
         return result;
     }
@@ -280,11 +209,11 @@ namespace SDDM {
     bool PamBackend::authenticate() {
         m_convCanceled = false; // reset for converse()
         if (!m_pam->authenticate()) {
-            m_app->error(m_pam->errorString(), Auth::ERROR_AUTHENTICATION);
+            m_app->error(m_pam->errorString(), AuthEnums::ERROR_AUTHENTICATION, m_pam->getResult());
             return false;
         }
         if (!m_pam->acctMgmt()) {
-            m_app->error(m_pam->errorString(), Auth::ERROR_AUTHENTICATION);
+            m_app->error(m_pam->errorString(), AuthEnums::ERROR_AUTHENTICATION, m_pam->getResult());
             return false;
         }
         return true;
@@ -292,7 +221,7 @@ namespace SDDM {
 
     bool PamBackend::openSession() {
         if (!m_pam->setCred(PAM_ESTABLISH_CRED)) {
-            m_app->error(m_pam->errorString(), Auth::ERROR_AUTHENTICATION);
+            m_app->error(m_pam->errorString(), AuthEnums::ERROR_AUTHENTICATION, m_pam->getResult());
             return false;
         }
 
@@ -311,11 +240,11 @@ namespace SDDM {
         }
 
         if (!m_pam->putEnv(sessionEnv)) {
-            m_app->error(m_pam->errorString(), Auth::ERROR_INTERNAL);
+            m_app->error(m_pam->errorString(), AuthEnums::ERROR_INTERNAL, m_pam->getResult());
             return false;
         }
         if (!m_pam->openSession()) {
-            m_app->error(m_pam->errorString(), Auth::ERROR_INTERNAL);
+            m_app->error(m_pam->errorString(), AuthEnums::ERROR_INTERNAL, m_pam->getResult());
             return false;
         }
         sessionEnv.insert(m_pam->getEnv());
@@ -334,34 +263,14 @@ namespace SDDM {
         return Backend::closeSession();
     }
 
-    QString PamBackend::userName() {
-        return QString::fromLocal8Bit((const char*) m_pam->getItem(PAM_USER));
+    /** what to do when pam_chauthtok (password expired) reaches retry limit
+     * and fails with PAM_MAXTRIES: continue in loop or give up and return? */
+    void PamBackend::setRetryLoop(bool loop) {
+        m_pam->setRetryLoop(loop);
     }
 
-    /** @internal for debug log: get string representation of pam message msg_style */
-    const QString &PamBackend::msgStyleString(int msg_style)
-    {
-        static const QString msgStyle[] = {
-            QStringLiteral("PAM_PROMPT_ECHO_OFF"),
-            QStringLiteral("PAM_PROMPT_ECHO_ON"),
-            QStringLiteral("PAM_ERROR_MSG"),
-            QStringLiteral("PAM_TEXT_INFO"),
-            QStringLiteral("UNKNOWN"),
-        };
-
-        switch(msg_style) {
-            case PAM_PROMPT_ECHO_OFF:
-                return msgStyle[0]; break;
-            case PAM_PROMPT_ECHO_ON:
-                return msgStyle[1]; break;
-            case PAM_ERROR_MSG:
-                return msgStyle[2]; break;
-            case PAM_TEXT_INFO:
-                return msgStyle[3]; break;
-            default: break;
-        }
-
-        return msgStyle[4];
+    QString PamBackend::userName() {
+        return QString::fromLocal8Bit((const char*) m_pam->getItem(PAM_USER));
     }
 
     int PamBackend::converse(int n, const struct pam_message **msg, struct pam_response **resp) {
@@ -372,48 +281,39 @@ namespace SDDM {
         if (n <= 0 || n > PAM_MAX_NUM_MSG)
             return PAM_CONV_ERR;
 
+        LOG_WORK_STATE(pam_conv, m_workState);
+
         // see whats going on in pam_conv
         for (int i = 0; i < n; i++) {
-            qDebug() << "[PAM] pam_conv: style=" << msgStyleString(msg[i]->msg_style)
-                            << "(" << msg[i]->msg_style << "), msg[" << i << "]=" << QString::fromLocal8Bit(msg[i]->msg);
+            qDebug().noquote().nospace() << "[PAM] pam_conv: style = "
+                                         << Utils::msgStyleString(msg[i]->msg_style)
+                                         << " (" << msg[i]->msg_style << "), msg[" << i << "] = \""
+                                         << QString::fromLocal8Bit(msg[i]->msg) << "\"";
         }
 
         for (int i = 0; i < n; i++) {
 
             QString convMsg = QString::fromLocal8Bit(msg[i]->msg);
-            Auth::Error convErr;
 
             switch(msg[i]->msg_style) {
+                // request password
                 case PAM_PROMPT_ECHO_OFF:
+                // request user name
                 case PAM_PROMPT_ECHO_ON:
                     newRequest = m_data->insertPrompt(msg[i], n == 1);
                     break;
                 case PAM_ERROR_MSG:
-                    convErr = m_data->handleErr(msg[i], newRequest, n == 1);
-                    // upon pwd change pam sends error message and then starts conversation,
-                    // so treat most of them actually as infos
-                    if(convErr==Auth::ERROR_NONE)
-                        m_app->info(convMsg, Auth::INFO_PAM_CONV);
-                    else {
-                        qDebug() << "[PAM] PamBackend: pam error message, msg=" << convMsg;
-                        m_app->error(convMsg, Auth::ERROR_AUTHENTICATION /* convErr */);
-                        return PAM_CONV_ERR;
-                    }
+                    qDebug() << "[PAM] PamBackend: pam error message, msg=" << convMsg;
+                    m_app->error(convMsg, AuthEnums::ERROR_PAM_CONV, m_pam->getResult());
                     break;
                 case PAM_TEXT_INFO:
                     // send pam conversation msg to greeter via HelperApp, SocketServer, Display
-                    // if there's only the info message, let's predict the prompts too
-                    m_app->info(convMsg, m_data->handleInfo(msg[i], newRequest, n == 1));
+                    qDebug() << "[PAM] PamBackend: pam info message, msg=" << convMsg;
+                    m_app->info(convMsg, AuthEnums::INFO_PAM_CONV, m_pam->getResult());
                     break;
                 default:
                     break;
             }
-        }
-
-        // pam (chauthtok) does not shut up after canceled with PAM_CONV_ERR in previous pam_conv
-        if(m_convCanceled) {
-            qDebug() << "[PAM] PamBackend: conversation canceled, dump trailing messages";
-            return PAM_CONV_ERR;
         }
 
         if (newRequest) {
