@@ -1,4 +1,5 @@
 /***************************************************************************
+* Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
 * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
 *
 * This program is free software; you can redistribute it and/or modify
@@ -64,7 +65,7 @@ namespace SDDM {
         void hibernate();
         void hybridSleep();
 
-        // toward (pam) backend
+        // to (pam) backend
         void login(const QString &user, const QString &password, const int sessionIndex) const;
         void pamResponse(const QString &newPassword);
         void cancelPamConv();
@@ -84,10 +85,10 @@ namespace SDDM {
         void canHibernateChanged(bool canHibernate);
         void canHybridSleepChanged(bool canHybridSleep);
 
-        // toward qml gui
-        void loginFailed(const QString err_msg);
+        // to qml gui
         void loginSucceeded();
-        void pamConvMsg(const QString pam_msg);
+        void loginFailed(const QString err_msg, int result);
+        void pamConvMsg(const QString pam_msg, int result);
         void pamRequest();
 
     private:

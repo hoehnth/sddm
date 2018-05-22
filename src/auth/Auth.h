@@ -21,6 +21,7 @@
 #ifndef SDDM_AUTH_H
 #define SDDM_AUTH_H
 
+#include "AuthEnums.h"
 #include "AuthPrompt.h"
 #include "AuthRequest.h"
 
@@ -62,29 +63,6 @@ namespace SDDM {
         explicit Auth(const QString &user = QString(), const QString &session = QString(), bool autologin = false, QObject *parent = 0, bool verbose = false);
         explicit Auth(QObject *parent);
         ~Auth();
-
-        enum Info {
-            INFO_NONE = 0,
-            INFO_UNKNOWN,
-            INFO_PAM_CONV,
-            INFO_PASS_CHANGE_REQUIRED,
-            _INFO_LAST
-        };
-
-        enum Error {
-            ERROR_NONE = 0,
-            ERROR_UNKNOWN,
-            ERROR_AUTHENTICATION,
-            ERROR_INTERNAL,
-            _ERROR_LAST
-        };
-
-        enum HelperExitStatus {
-            HELPER_SUCCESS = 0,
-            HELPER_AUTH_ERROR,
-            HELPER_SESSION_ERROR,
-            HELPER_OTHER_ERROR
-        };
 
         static void registerTypes();
 
@@ -191,21 +169,21 @@ namespace SDDM {
         *
         * @param success true if every underlying task went fine
         */
-        void finished(Auth::HelperExitStatus status);
+        void finished(AuthEnums::HelperExitStatus status);
 
         /**
         * Emitted on error
         *
         * @param message message to be displayed to the user
         */
-        void error(QString message, Auth::Error type);
+        void error(QString message, AuthEnums::Error type, int result);
 
         /**
         * Information from the underlying stack is to be presented to the user
         *
         * @param message message to be displayed to the user
         */
-        void info(QString message, Auth::Info type);
+        void info(QString message, AuthEnums::Info type, int result);
 
     private:
         class Private;

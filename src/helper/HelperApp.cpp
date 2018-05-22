@@ -1,6 +1,7 @@
 /*
  * Main authentication application class
- * Copyright (C) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,12 @@
 #include "Backend.h"
 #include "UserSession.h"
 #include "SafeDataStream.h"
+#include "Configuration.h"
 
 #include "MessageHandler.h"
 #include "VirtualTerminal.h"
+
+#include "Utils.h"
 
 #include <QtCore/QTimer>
 #include <QtCore/QFile>
@@ -33,6 +37,7 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <locale.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 
@@ -49,7 +54,6 @@ namespace SDDM {
             , m_session(new UserSession(this))
             , m_socket(new QLocalSocket(this)) {
         qInstallMessageHandler(HelperMessageHandler);
-
         QTimer::singleShot(0, this, SLOT(setUp()));
     }
 
@@ -61,7 +65,7 @@ namespace SDDM {
         if ((pos = args.indexOf(QStringLiteral("--socket"))) >= 0) {
             if (pos >= args.length() - 1) {
                 qCritical() << "This application is not supposed to be executed manually";
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
                 return;
             }
             server = args[pos + 1];
@@ -70,7 +74,7 @@ namespace SDDM {
         if ((pos = args.indexOf(QStringLiteral("--id"))) >= 0) {
             if (pos >= args.length() - 1) {
                 qCritical() << "This application is not supposed to be executed manually";
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
                 return;
             }
             m_id = QString(args[pos + 1]).toLongLong();
@@ -79,7 +83,7 @@ namespace SDDM {
         if ((pos = args.indexOf(QStringLiteral("--start"))) >= 0) {
             if (pos >= args.length() - 1) {
                 qCritical() << "This application is not supposed to be executed manually";
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
                 return;
             }
             m_session->setPath(args[pos + 1]);
@@ -88,7 +92,7 @@ namespace SDDM {
         if ((pos = args.indexOf(QStringLiteral("--user"))) >= 0) {
             if (pos >= args.length() - 1) {
                 qCritical() << "This application is not supposed to be executed manually";
-                exit(Auth::HELPER_OTHER_ERROR);
+                exit(AuthEnums::HELPER_OTHER_ERROR);
                 return;
             }
             m_user = args[pos + 1];
@@ -104,12 +108,30 @@ namespace SDDM {
 
         if (server.isEmpty() || m_id <= 0) {
             qCritical() << "This application is not supposed to be executed manually";
-            exit(Auth::HELPER_OTHER_ERROR);
+            exit(AuthEnums::HELPER_OTHER_ERROR);
             return;
         }
 
+        // Enable/Disable retry limit for pam_chauthtok (fails with PAM_MAXTRIES) in sddm.conf,
+        // password retry setting is usualy too low and aborts our password change dialog early
+        if(mainConfig.RetryLoop.get() == true) {
+            qDebug() << "Disabled password module retry limit";
+            m_backend->setRetryLoop(true);
+        }
+
+        // read locale settings from distro specific file (default /etc/locale.conf)
+        // and set (system) locale for pam conversations, i.e. LANG and LC_
+        QProcessEnvironment env;
+        Utils::readLocaleFile(env, mainConfig.LocaleFile.get());
+        Utils::setLocaleEnv(env);
+
+        // enable localization for (pam) backend,
+        // set LC_ALL="" according to man page, otherwise C locale is selected
+        setlocale (LC_ALL, "");
+
         connect(m_socket, &QLocalSocket::connected, this, &HelperApp::doAuth);
         connect(m_session, QOverload<int>::of(&QProcess::finished), this, &HelperApp::sessionFinished);
+
         m_socket->connectToServer(server, QIODevice::ReadWrite | QIODevice::Unbuffered);
     }
 
@@ -129,7 +151,7 @@ namespace SDDM {
             QString vt = env.value(QStringLiteral("XDG_VTNR"));
             utmpLogin(vt, displayId, m_user, 0, false);
 
-            exit(Auth::HELPER_AUTH_ERROR);
+            exit(AuthEnums::HELPER_AUTH_ERROR);
             return;
         }
 
@@ -142,7 +164,7 @@ namespace SDDM {
             QString vt = env.value(QStringLiteral("XDG_VTNR"));
             utmpLogin(vt, displayId, m_user, 0, false);
 
-            exit(Auth::HELPER_AUTH_ERROR);
+            exit(AuthEnums::HELPER_AUTH_ERROR);
             return;
         }
 
@@ -160,7 +182,7 @@ namespace SDDM {
 
             if (!m_backend->openSession()) {
                 sessionOpened(false);
-                exit(Auth::HELPER_SESSION_ERROR);
+                exit(AuthEnums::HELPER_SESSION_ERROR);
                 return;
             }
 
@@ -177,7 +199,7 @@ namespace SDDM {
             }
         }
         else
-            exit(Auth::HELPER_SUCCESS);
+            exit(AuthEnums::HELPER_SUCCESS);
         return;
     }
 
@@ -196,24 +218,24 @@ namespace SDDM {
         exit(status);
     }
 
-    void HelperApp::info(const QString& message, Auth::Info type) {
+    void HelperApp::info(const QString& message, AuthEnums::Info type, int result) {
         SafeDataStream str(m_socket);
-        str << Msg::INFO << message << type;
+        str << Msg::INFO << message << type << result;
         str.send();
         m_socket->waitForBytesWritten();
     }
 
-    void HelperApp::error(const QString& message, Auth::Error type) {
+    void HelperApp::error(const QString& message, AuthEnums::Error type, int result) {
         SafeDataStream str(m_socket);
-        str << Msg::ERROR << message << type;
+        str << Msg::ERROR << message << type << result;
         str.send();
         m_socket->waitForBytesWritten();
     }
 
     Request HelperApp::request(const Request& request, bool &cancel) {
+        SafeDataStream str(m_socket);
         Msg m = Msg::MSG_UNKNOWN;
         Request response;
-        SafeDataStream str(m_socket);
         str << Msg::REQUEST << request;
         str.send();
         m_socket->waitForBytesWritten();
@@ -383,6 +405,7 @@ namespace SDDM {
 }
 
 int main(int argc, char** argv) {
+
     SDDM::HelperApp app(argc, argv);
     return app.exec();
 }

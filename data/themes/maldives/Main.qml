@@ -37,9 +37,9 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    // container for password renewal logic
+    // container for password change logic
     PasswordConnections {
-        renewalDialog: renewal
+        dialog: passwordChange
         pwdItem: password // use PasswordBox.text
         getsBackFocus: password
         errMsg: errorMessage
@@ -72,20 +72,20 @@ Rectangle {
         }
 
         Image {
-            id: renewalImg
+            id: dialogImg
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.margins: 64
-            width: renewal.width+32
-            height: renewal.height+32
-            visible: renewal.visible
+            width: passwordChange.width+32
+            height: passwordChange.height+32
+            visible: passwordChange.visible
 
             source: "rectangle.png"
         }
 
-        PasswordRenewal {
-            id: renewal
-            anchors.centerIn: renewalImg
+        PasswordChange {
+            id: passwordChange
+            anchors.centerIn: dialogImg
             visible: false
             radius: 8
             color: "transparent"
@@ -96,7 +96,7 @@ Rectangle {
             anchors.centerIn: parent
             width: Math.max(320, mainColumn.implicitWidth + 50)
             height: Math.max(320, mainColumn.implicitHeight + 50)
-            enabled: !renewal.visible
+            enabled: !passwordChange.visible
 
             source: "rectangle.png"
 
