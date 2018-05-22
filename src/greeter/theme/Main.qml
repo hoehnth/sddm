@@ -43,18 +43,22 @@ Rectangle {
         txtMessage.color = "white"
     }
 
-    // container for password renewal logic
+    Connections {
+        target: sddm
+        onLoginFailed: {
+            txtMessage.color = "red"
+            txtMessage.text = textConstants.loginFailed
+            listView.currentItem.password = ""
+        }
+    }
+
+    // container for password change logic
     PasswordConnections {
         dialog: passwordChange
-        pwdItem: listView.currentItem // use listView.currentItem.password
+        pwdItem: listView.currentItem // uses listView.currentItem.password
         getsBackFocus: listView
         errMsg: errMessage
         txtMsg: txtMessage
-    }
-
-    Connections {
-        target: sddm
-        onLoginFailed: txtMessage.color = "red"
     }
 
     Background {
@@ -121,19 +125,10 @@ Rectangle {
             }
 
             Rectangle {
+                id: rightBox
                 width: parent.width / 2; height: parent.height
                 color: "#22000000"
                 clip: true
-
-                PasswordChange {
-                    id: passwordChange
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: usersContainer.top
-                    visible: false
-                    color: "#22888888"
-                    promptColor: "white"
-                    infosColor: "lightcoral"
-                }
 
                 Item {
                     id: usersContainer
@@ -211,6 +206,21 @@ Rectangle {
 
             }
 
+        }
+
+        // dialog to change expired passwords
+        PasswordChange {
+            id: passwordChange
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: actionBar.bottom
+            anchors.topMargin: 32
+            visible: false
+            color: "#22888888"
+            promptColor: "white"
+            infosColor: "lightcoral"
+            titleColor: "white"
+            titleTextColor: "black"
+            infosHeight: 10
         }
 
         Rectangle {
