@@ -70,7 +70,7 @@ namespace SDDM {
         return d->hidden;
     }
 
-    // @internal for debug logging purposes
+    /** \internal Get string representation of type for debug logging */
     const QString &AuthPrompt::typeToString(int type) {
 
         static const QString stringList[] = {

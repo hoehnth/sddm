@@ -247,7 +247,7 @@ namespace SDDM {
                 str >> response;
                 qDebug() << "HelperApp: daemon response received";
                 break;
-            // password renewal canceled in greeter
+            // password change canceled in greeter
             case CANCEL:
                 cancel = true;
                 qDebug() << "HelperApp: Message received from daemon: CANCEL";
