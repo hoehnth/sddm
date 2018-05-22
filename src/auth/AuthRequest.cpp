@@ -1,6 +1,7 @@
 /*
  * Qt Authentication Library
- * Copyright (C) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,6 +19,7 @@
  *
  */
 
+#include "AuthBase.h"
 #include "AuthRequest.h"
 #include "AuthMessages.h"
 
@@ -114,17 +116,9 @@ namespace SDDM {
         return r;
     }
 
-    QString AuthRequest::findNewPwdMessage() {
+    QString AuthRequest::findChangePwdMessage() {
         Q_FOREACH(const AuthPrompt* qap, d->prompts) {
-            if(qap->type()==AuthPrompt::CHANGE_NEW)
-                return qap->message();
-        }
-        return QString();
-    }
-
-    QString AuthRequest::findRepeatPwdMessage() {
-        Q_FOREACH(const AuthPrompt* qap, d->prompts) {
-            if(qap->type()==AuthPrompt::CHANGE_REPEAT)
+            if(qap->type()==AuthPrompt::CHANGE_PASSWORD)
                 return qap->message();
         }
         return QString();
@@ -138,21 +132,35 @@ namespace SDDM {
         return NULL;
     }
 
-    void AuthRequest::setChangeResponse(const QString &currentPwd, const QString &newPassword) {
+    bool AuthRequest::setLoginResponse(const QString &username, const QString &password) {
+        AuthPrompt* prompt = nullptr;
+
+        if(!username.isNull()) {
+            prompt = findPrompt(AuthPrompt::LOGIN_USER);
+            if(prompt) prompt->setResponse(qPrintable(username));
+        }
+        if(!password.isNull()) {
+            prompt = findPrompt(AuthPrompt::LOGIN_PASSWORD);
+            if(prompt) prompt->setResponse(qPrintable(password));
+        }
+        if(prompt)
+            return true;
+
+        return false;
+    }
+
+    bool AuthRequest::setChangeResponse(const QString &password) {
         AuthPrompt* prompt;
 
-        if(!currentPwd.isNull()) {
-            prompt = findPrompt(AuthPrompt::CHANGE_CURRENT);
-            if(prompt) prompt->setResponse(qPrintable(currentPwd));
+        if(!password.isNull()) {
+            prompt = findPrompt(AuthPrompt::CHANGE_PASSWORD);
+            if(prompt) {
+                prompt->setResponse(qPrintable(password));
+                return true;
+            }
         }
 
-        if(!newPassword.isNull()) {
-            prompt = findPrompt(AuthPrompt::CHANGE_NEW);
-            if(prompt) prompt->setResponse(qPrintable(newPassword));
-
-            prompt = findPrompt(AuthPrompt::CHANGE_REPEAT);
-            if(prompt) prompt->setResponse(qPrintable(newPassword));
-        }
+        return false;
     }
 }
 

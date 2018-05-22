@@ -1,4 +1,5 @@
 /***************************************************************************
+* Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
 * Copyright (c) 2015 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
 * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
 *
@@ -229,23 +230,25 @@ namespace SDDM {
                 break;
                 case DaemonMessages::LoginFailed: {
                     QString m;
-                    // read pam conv() message (info/error) from daemon
-                    input >> m;
+                    int rc;
+                    // read pam conv() message (info/error) and pam rc from daemon
+                    input >> m >> rc;
                     // log message
-                    qDebug() << "Message received from daemon: LoginFailed, " << m;
+                    qDebug() << "Message received from daemon: LoginFailed, " << m << ", rc =" << rc;
                     // emit signal
-                    emit loginFailed(m);
+                    emit loginFailed(m, rc);
                 }
                 break;
                 // pam messages from conv() following login, e.g. for expired pwd
                 // conv() msg with msg_style: PAM_ERROR_MSG or PAM_TEXT_INFO
                 case DaemonMessages::PamConvMsg: {
                     QString m;
-                    // read pam conv() message (info/error) from daemon
-                    input >> m;
-                    qDebug() << "PAM conversation message from daemon: " << m;
+                    int rc;
+                    // read pam conv() message (info/error) and pam rc from daemon
+                    input >> m >> rc;
+                    qDebug() << "PAM conversation message from daemon: " << m << ", rc =" << rc;
                     // send message to GUI
-                    emit pamConvMsg(m);
+                    emit pamConvMsg(m, rc);
                 }
                 break;
 
@@ -261,7 +264,7 @@ namespace SDDM {
                     // log prompts
                     qDebug() << "PAM request with " << r.prompts.length() << " prompts from daemon";
                     for (const Prompt &p : r.prompts)
-                        qDebug() << "GreeterProxy: Prompt message=" << p.message << ", hidden=" << p.hidden
+                        qDebug() << "GreeterProxy: Prompt message =" << p.message << ", hidden =" << p.hidden
                                         << ", type =" << AuthPrompt::typeToString(p.type) << "(" << p.type << ")";
 
                     // compatibility with old themes: cancel pam

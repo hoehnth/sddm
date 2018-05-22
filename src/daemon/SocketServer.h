@@ -47,9 +47,9 @@ namespace SDDM {
         void readyRead();
 
         // from (pam) backend to greeter
-        void loginFailed(QLocalSocket *socket, const QString &message);
         void loginSucceeded(QLocalSocket *socket);
-        void pamConvMsg(QLocalSocket *socket, const QString &message);
+        void loginFailed(QLocalSocket *socket, const QString &message, int result);
+        void pamConvMsg(QLocalSocket *socket, const QString &message, int result);
         void pamRequest(QLocalSocket *socket, const AuthRequest * const request);
 
     signals:

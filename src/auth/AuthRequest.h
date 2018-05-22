@@ -1,6 +1,7 @@
 /*
  * Qt Authentication library
- * Copyright (C) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2013 Martin Bříza <mbriza@redhat.com>
+ * Copyright (c) 2018 Thomas Höhn <thomas_hoehn@gmx.net>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,13 +23,11 @@
 #define REQUEST_H
 
 #include <QtCore/QObject>
+#include <QtQml/QQmlListProperty>
 
 #include <AuthPrompt.h>
 
-#include <QtQml/QQmlListProperty>
-
 namespace SDDM {
-    //class AuthPrompt;
     class Request;
     /**
     * \brief
@@ -81,22 +80,17 @@ namespace SDDM {
         */
         QQmlListProperty<AuthPrompt> promptsRead();
         /**
-         * @brief Find pam message of type CHANGE_NEW in prompts list
+         * @brief Find pam message of type CHANGE_PASSWORD in prompts list
          * @return pam message string
          */
-        Q_INVOKABLE QString findNewPwdMessage();
+        Q_INVOKABLE QString findChangePwdMessage();
         /**
-         * @brief Find pam message of type CHANGE_REPEAT in prompts list
-         * @return pam message string
-         */
-        Q_INVOKABLE QString findRepeatPwdMessage();
-        /**
-          * @brief Write password responses into request for pam conv(),
-          * for AuthPrompt::CHANGE_NEW, CHANGE_REPEAT, CHANGE_CURRENT
-          * @param currentPwd Current user password (expired password)
-          * @param newPassword New user password (replaces expired password)
+          * @brief Write responses into request for pam conv(),
+          * for AuthPrompt::LOGIN_USER,LOGIN_PASSWORD,CHANGE_PASSWORD
+          * @return true if response was set
           */
-        Q_INVOKABLE void setChangeResponse(const QString &currentPwd, const QString &newPassword);
+        Q_INVOKABLE bool setLoginResponse(const QString &username, const QString &password);
+        Q_INVOKABLE bool setChangeResponse(const QString &password);
 
         static AuthRequest *empty();
 

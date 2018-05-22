@@ -60,37 +60,37 @@ namespace SDDM {
         return s;
     }
 
-    inline QDataStream& operator<<(QDataStream &s, const Auth::Error &m) {
+    inline QDataStream& operator<<(QDataStream &s, const AuthEnums::Error &m) {
         s << qint32(m);
         return s;
     }
 
-    inline QDataStream& operator>>(QDataStream &s, Auth::Error &m) {
+    inline QDataStream& operator>>(QDataStream &s, AuthEnums::Error &m) {
         // TODO seriously?
         qint32 i;
         s >> i;
-        if (i >= Auth::_ERROR_LAST || i < Auth::ERROR_NONE) {
+        if (i >= AuthEnums::_ERROR_LAST || i < AuthEnums::ERROR_NONE) {
             s.setStatus(QDataStream::ReadCorruptData);
             return s;
         }
-        m = Auth::Error(i);
+        m = AuthEnums::Error(i);
         return s;
     }
 
-    inline QDataStream& operator<<(QDataStream &s, const Auth::Info &m) {
+    inline QDataStream& operator<<(QDataStream &s, const AuthEnums::Info &m) {
         s << qint32(m);
         return s;
     }
 
-    inline QDataStream& operator>>(QDataStream &s, Auth::Info &m) {
+    inline QDataStream& operator>>(QDataStream &s, AuthEnums::Info &m) {
         // TODO seriously?
         qint32 i;
         s >> i;
-        if (i >= Auth::_INFO_LAST || i < Auth::INFO_NONE) {
+        if (i >= AuthEnums::_INFO_LAST || i < AuthEnums::INFO_NONE) {
             s.setStatus(QDataStream::ReadCorruptData);
             return s;
         }
-        m = Auth::Info(i);
+        m = AuthEnums::Info(i);
         return s;
     }
 

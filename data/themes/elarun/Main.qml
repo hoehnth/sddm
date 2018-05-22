@@ -37,9 +37,9 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    // container for password renewal logic
+    // container for password change logic
     PasswordConnections {
-        renewalDialog: renewal
+        dialog: passwordChange
         pwdItem: pw_entry // use PasswordBox.text
         getsBackFocus: pw_entry
         //errMsg: none
@@ -62,8 +62,8 @@ Rectangle {
         color: "transparent"
         //visible: primaryScreen
 
-        PasswordRenewal {
-            id: renewal
+        PasswordChange {
+            id: passwordChange
             anchors.horizontalCenter: rectangle.horizontalCenter
             anchors.top: rectangle.bottom
             anchors.topMargin: 32
@@ -77,7 +77,7 @@ Rectangle {
             id: rectangle
             width: 416; height: 262
             color: "#00000000"
-            enabled: !renewal.visible
+            enabled: !passwordChange.visible
 
             anchors.centerIn: parent
 
