@@ -77,11 +77,11 @@ Cancel pam conversation with pam_conv.
 
 ## New sddm.conf entries
 
-*``LocaleFile``
+* ``LocaleFile``
 File path for distro-specific locale.conf file (for pam backend) to set locale for PAM conversation
 and user session.
 
-*``RetryLoop``
+* ``RetryLoop``
 PAM retry setting for password change with pam_pwquality module is usually very low and aborts
 password change dialog in greeter too early if new password is refused several times. Set entry
 true to ignore PAM_MAXTRIES error from pam_chauthtok and loop password conversation.
