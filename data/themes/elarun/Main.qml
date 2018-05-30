@@ -27,6 +27,7 @@ import QtQuick 2.0
 import SddmComponents 2.0
 
 Rectangle {
+    id: container
     width: 640
     height: 480
 
@@ -37,13 +38,17 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    // container for password change logic
-    PasswordConnections {
-        dialog: passwordChange
-        pwdItem: pw_entry // use PasswordBox.text
-        getsBackFocus: pw_entry
-        //errMsg: none
-        //txtMsg: none
+    PamConvHelper { dialog: passwordChange }
+
+    Connections {
+        target: sddm
+        onLoginSucceeded: {
+        }
+        onLoginFailed: {
+            passwordChange.close()
+            pw_entry.forceActiveFocus()
+            pw_entry.text = ""
+        }
     }
 
     Background {
@@ -65,12 +70,16 @@ Rectangle {
         PasswordChange {
             id: passwordChange
             anchors.horizontalCenter: rectangle.horizontalCenter
-            anchors.top: rectangle.bottom
-            anchors.topMargin: 32
+            // for regular display size show dialog below user input
+            anchors.top: container.height<768 ? undefined : rectangle.bottom
+            // center on small displays
+            anchors.verticalCenter: container.height<768 ? parent.verticalCenter : undefined
+            anchors.topMargin: 16
             visible: false
             radius: 8
             color: "#22888888"
             infosColor: "lightcoral"
+            infosHeight: 10
         }
 
         Rectangle {
@@ -78,6 +87,8 @@ Rectangle {
             width: 416; height: 262
             color: "#00000000"
             enabled: !passwordChange.visible
+            // hide main input for small displays when password change dialog is active
+            visible: !(passwordChange.visible && container.height < 768)
 
             anchors.centerIn: parent
 
