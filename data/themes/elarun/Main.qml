@@ -45,7 +45,6 @@ Rectangle {
         onLoginSucceeded: {
         }
         onLoginFailed: {
-            passwordChange.close()
             pw_entry.forceActiveFocus()
             pw_entry.text = ""
         }
