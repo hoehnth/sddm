@@ -35,8 +35,11 @@ Rectangle {
     LayoutMirroring.childrenInherit: true
 
     property int sessionIndex: session.index
+    property int pam_maxtries_result: 11 // TODO: enum
 
     TextConstants { id: textConstants }
+
+    PamConvHelper { dialog: passwordChange }
 
     function resetTxtMsg() {
         txtMessage.text = textConstants.promptSelectUser
@@ -46,19 +49,16 @@ Rectangle {
     Connections {
         target: sddm
         onLoginFailed: {
-            txtMessage.color = "red"
-            txtMessage.text = textConstants.loginFailed
             listView.currentItem.password = ""
+            listView.currentItem.forceActiveFocus()
+            txtMessage.color = "red"
+            // explain why password change dialog suddenly disappears
+            // because pam_chauthtok failes with PAM_MAXTRIES
+            if(result == pam_maxtries_result)
+                txtMessage.text = textConstants.pamMaxtriesError
+            else // filter out login failure details
+                txtMessage.text = textConstants.loginFailed
         }
-    }
-
-    // container for password change logic
-    PasswordConnections {
-        dialog: passwordChange
-        pwdItem: listView.currentItem // uses listView.currentItem.password
-        getsBackFocus: listView
-        errMsg: errMessage
-        txtMsg: txtMessage
     }
 
     Background {
@@ -110,6 +110,8 @@ Rectangle {
 
         Row {
             anchors.fill: parent
+            // hide main input for small displays when password change dialog is active
+            visible: !(passwordChange.visible && container.height < 768)
             //visible: primaryScreen
 
             Rectangle {
@@ -211,16 +213,19 @@ Rectangle {
         // dialog to change expired passwords
         PasswordChange {
             id: passwordChange
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: actionBar.bottom
-            anchors.topMargin: 32
+            // if screen has enough space show dialog below picture box
+            anchors.top: container.height<768 ? undefined : actionBar.bottom
+            anchors.topMargin: container.height<768 ? undefined : 32
+            anchors.horizontalCenter: container.height<768 ? undefined : parent.horizontalCenter
+            // otherwise on small displays center on screen and hide picture box
+            anchors.centerIn: container.height<768 ? parent : undefined
             visible: false
             color: "#22888888"
             promptColor: "white"
             infosColor: "lightcoral"
             titleColor: "white"
             titleTextColor: "black"
-            infosHeight: 10
+            //infosHeight: 10
         }
 
         Rectangle {

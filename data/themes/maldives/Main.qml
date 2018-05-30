@@ -34,16 +34,31 @@ Rectangle {
     LayoutMirroring.childrenInherit: true
 
     property int sessionIndex: session.index
+    property int pam_maxtries_result: 11 // TODO: enum
 
     TextConstants { id: textConstants }
 
-    // container for password change logic
-    PasswordConnections {
-        dialog: passwordChange
-        pwdItem: password // use PasswordBox.text
-        getsBackFocus: password
-        errMsg: errorMessage
-        txtMsg: errorMessage
+    PamConvHelper { dialog: passwordChange }
+
+    Connections {
+        target: sddm
+
+        onLoginSucceeded: {
+            errorMessage.color = "steelblue"
+            errorMessage.text = textConstants.loginSucceeded
+        }
+
+        onLoginFailed: {
+            password.text = ""
+            errorMessage.color = "red"
+            //password.forceActiveFocus()
+            // explain why password change dialog suddenly disappears
+            // pam_chauthtok failed with PAM_MAXTRIES
+            if(result == pam_maxtries_result)
+                errorMessage.text = textConstants.pamMaxtriesError
+            else // filter out login failure details
+                errorMessage.text = textConstants.loginFailed
+        }
     }
 
     Background {
@@ -73,13 +88,15 @@ Rectangle {
 
         Image {
             id: dialogImg
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.margins: 32
+            // for regular display size show dialog on top left
+            anchors.left: container.height<1024 ? undefined : parent.left
+            anchors.top: container.height<1024 ? undefined : parent.top
+            // center on small displays
+            anchors.centerIn: container.height<1024 ? parent : undefined
+            anchors.margins: container.height<1024 ? undefined : 32
             width: passwordChange.width+32
             height: passwordChange.height+32
             visible: passwordChange.visible
-
             source: "rectangle.png"
         }
 
@@ -90,6 +107,7 @@ Rectangle {
             radius: 8
             color: "transparent"
             titleTextColor: "black"
+            infosHeight: 10
         }
 
         Image {
@@ -98,6 +116,8 @@ Rectangle {
             width: Math.max(320, mainColumn.implicitWidth + 50)
             height: Math.max(320, mainColumn.implicitHeight + 50)
             enabled: !passwordChange.visible
+            // hide main input for small displays when password change dialog is active
+            visible: !(passwordChange.visible && container.height<1024)
 
             source: "rectangle.png"
 
