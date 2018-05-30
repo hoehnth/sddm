@@ -1,12 +1,12 @@
 ## Introduction
 
 SDDM can handle expired passwords during login.
-A password dialog is provided to change the expired password.
+A basic password dialog is provided to change the expired password.
 The greeter frontend will talk with the backend to handle the pam conversation.
 Support for password change is provided with two components used in greeter themes:
 
 * ``PasswordChange.qml`` basic dialog for password change via pam conversation
-* ``PasswordConnections.qml`` container for Connections, hides signal handling from themes
+* ``PamConvHelper.qml`` helper for password change dialog, handle pam conversation for themes
 
 ## Usage
 
@@ -15,14 +15,7 @@ See the built-in greeter theme ``Main.qml`` for an example,
 and add this to  ``Main.qml``:
 
 ```
-// container for password change logic
-PasswordConnections {
-    dialog: passwordChange // PasswordChange dialog id (see below)
-    pwdItem: listView.currentItem gets password input field from currentItem.password
-    getsBackFocus: listView // item where focus falls back after dialog closes
-    errMsg: errMessage // if set defines (text) item which shows errors
-    txtMsg: txtMessage // if set (text) item which shows pam infos
-}
+PamConvHelper { dialog: passwordChange }
 
 ...
 
@@ -30,8 +23,7 @@ PasswordConnections {
         PasswordChange {
             id: passwordChange
             // customize here e.g.:
-            //anchors.horizontalCenter: parent.horizontalCenter
-            //anchors.bottom: usersContainer.top
+            //anchors.top: parent.top
             //visible: false
             //color: "#22888888"
             //promptColor: "white"
@@ -82,3 +74,14 @@ Send password response to (pam) backend, i.e. pam_conv.
 
 * ``sddm.cancelPamConv()``
 Cancel pam conversation with pam_conv.
+
+## New sddm.conf entries
+
+*``LocaleFile``
+File path for distro-specific locale.conf file (for pam backend) to set locale for PAM conversation
+and user session.
+
+*``RetryLoop``
+PAM retry setting for password change with pam_pwquality module is usually very low and aborts
+password change dialog in greeter too early if new password is refused several times. Set entry
+true to ignore PAM_MAXTRIES error from pam_chauthtok and loop password conversation.
