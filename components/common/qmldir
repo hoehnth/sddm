@@ -9,7 +9,7 @@ LayoutBox 2.0 LayoutBox.qml
 Menu 2.0 Menu.qml
 PasswordBox 2.0 PasswordBox.qml
 PasswordChange 2.0 PasswordChange.qml
-PasswordConnections 2.0 PasswordConnections.qml
+PamConvHelper 2.0 PamConvHelper.qml
 PictureBox 2.0 PictureBox.qml
 TextBox 2.0 TextBox.qml
 TextConstants 2.0 TextConstants.qml
