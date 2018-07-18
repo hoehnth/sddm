@@ -26,6 +26,7 @@
 
 import QtQuick 2.0
 import SddmComponents 2.0
+//import PamTypes 1.0
 
 Item {
 
@@ -58,7 +59,7 @@ Item {
             dialog.append(pam_msg)
             /*
             // hint for user why current password is asked again
-            if(result == pam_maxtries_result)
+            if(result == PamTypes.RESULT_PAM_MAXTRIES)
                 dialog.append(textConstants.pamMaxtriesInfo)
             */
         }

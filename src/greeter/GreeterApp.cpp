@@ -30,6 +30,7 @@
 #include "KeyboardModel.h"
 #include "AuthRequest.h"
 #include "AuthPrompt.h"
+#include "PamTypes.h"
 
 #include "MessageHandler.h"
 
@@ -181,6 +182,9 @@ namespace SDDM {
         view->rootContext()->setContextProperty(QStringLiteral("keyboard"), m_keyboard);
         view->rootContext()->setContextProperty(QStringLiteral("primaryScreen"), QGuiApplication::primaryScreen() == screen);
         view->rootContext()->setContextProperty(QStringLiteral("__sddm_errors"), QString());
+
+        // provide pam result defines from _pam_types.h to theme
+        qmlRegisterUncreatableType<PamTypes>("PamTypes", 1, 0, "PamTypes", QStringLiteral("PamTypes object creation not allowed"));
 
         // register AuthRequest and AuthPrompt type for pamRequest signal
         qmlRegisterUncreatableType<AuthRequest>("SddmAuth", 1, 0, "AuthRequest", QStringLiteral("AuthRequest object creation not allowed"));

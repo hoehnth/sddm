@@ -25,6 +25,7 @@
 
 import QtQuick 2.0
 import SddmComponents 2.0
+import PamTypes 1.0
 
 Rectangle {
     id: container
@@ -35,7 +36,6 @@ Rectangle {
     LayoutMirroring.childrenInherit: true
 
     property int sessionIndex: session.index
-    property int pam_maxtries_result: 11 // TODO: enum
 
     TextConstants { id: textConstants }
 
@@ -52,9 +52,9 @@ Rectangle {
             listView.currentItem.password = ""
             listView.currentItem.forceActiveFocus()
             txtMessage.color = "red"
-            // explain why password change dialog suddenly disappears
-            // because pam_chauthtok failes with PAM_MAXTRIES
-            if(result == pam_maxtries_result)
+            // explain why password change dialog suddenly disappears,
+            // cause pam_chauthtok failed with PAM_MAXTRIES
+            if(result == PamTypes.RESULT_PAM_MAXTRIES)
                 txtMessage.text = textConstants.pamMaxtriesError
             else // filter out login failure details
                 txtMessage.text = textConstants.loginFailed
