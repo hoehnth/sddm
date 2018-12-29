@@ -30,7 +30,10 @@ import SddmComponents 2.0
 
 Item {
 
-    property var dialog
+    property Loader loader
+    property Component component
+
+    property string msgBuffer: ""
 
     // tell greeter we handle password change (password expired),
     // default  in old themes is no password change
@@ -39,11 +42,11 @@ Item {
     // handles password change events
     Connections {
 
-        target: dialog
+        target: loader.item
 
         onCancel: sddm.cancelPamConv()
 
-        onOk: sddm.pamResponse(dialog.password)
+        onOk: sddm.pamResponse(loader.item.password)
 
     }
 
@@ -51,25 +54,41 @@ Item {
 
         target: sddm
 
-        onLoginFailed: dialog.close()
+        // unload dialog
+        onLoginFailed: loader.sourceComponent = undefined
 
         // show messages from pam conversation
-        onPamConvMsg: {
-            // from signal pamConvMsg(pam_msg, result)
-            dialog.append(pam_msg)
-            /*
-            // hint for user why current password is asked again
-            if(result == PamTypes.RESULT_PAM_MAXTRIES)
-                dialog.append(textConstants.pamMaxtriesInfo)
-            */
-        }
+        onPamConvMsg:
+            // collect pam messages arriving
+            // before a pam request
+            if(loader.status != Loader.Ready) {
+                if(msgBuffer === "")
+                    msgBuffer += pam_msg
+                else
+                    msgBuffer += '\n' + pam_msg
+            } else {
+                // from signal pamConvMsg(pam_msg, result)
+                loader.item.append(pam_msg)
+                /*
+                // hint for user why current password is asked again
+                if(result == PamTypes.RESULT_PAM_MAXTRIES)
+                    loader.item.append(textConstants.pamMaxtriesInfo)
+                */
+            }
 
         // new prompt arrived from pam_chauthtok,
         // e.g. for password change, prompt for current or new password
         onPamRequest: {
+            loader.sourceComponent = component
+
+            // show pam errors and infos which arrived before request
+            if(msgBuffer !== "")
+                loader.item.append(msgBuffer)
+            msgBuffer = ""
+
             // open password change dialog and block other GUI
             // NOTE: only one prompt per request supported!
-            dialog.newPrompt(request.findChangePwdMessage() /* prompt message */)
+            loader.item.newPrompt(request.findChangePwdMessage() /* prompt message */)
         }
     }
 }

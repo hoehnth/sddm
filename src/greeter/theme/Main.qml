@@ -39,7 +39,23 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    PamConvHelper { dialog: passwordChange }
+    Component {
+        id: pwdChangeComp
+        // dialog to change expired passwords
+        PasswordChange {
+            color: "#22888888"
+            promptColor: "white"
+            infosColor: "lightcoral"
+            titleColor: "white"
+            titleTextColor: "black"
+            //infosHeight: 10
+        }
+    }
+
+    PamConvHelper {
+        loader: pwdChangeLoader
+        component: pwdChangeComp
+    }
 
     function resetTxtMsg() {
         txtMessage.text = textConstants.promptSelectUser
@@ -111,7 +127,7 @@ Rectangle {
         Row {
             anchors.fill: parent
             // hide main input for small displays when password change dialog is active
-            visible: !(passwordChange.visible && container.height < 768)
+            visible: !(pwdChangeLoader.status == Loader.Ready && container.height < 768)
             //visible: primaryScreen
 
             Rectangle {
@@ -137,7 +153,7 @@ Rectangle {
                     width: parent.width; height: 300
                     anchors.verticalCenter: parent.verticalCenter
                     // block user selection during password change
-                    enabled: !passwordChange.visible
+                    enabled: pwdChangeLoader.status != Loader.Ready
 
                     ImageButton {
                         id: prevUser
@@ -210,22 +226,14 @@ Rectangle {
 
         }
 
-        // dialog to change expired passwords
-        PasswordChange {
-            id: passwordChange
+        Loader {
+            id: pwdChangeLoader
             // if screen has enough space show dialog below picture box
             anchors.top: container.height<768 ? undefined : actionBar.bottom
             anchors.topMargin: container.height<768 ? undefined : 32
             anchors.horizontalCenter: container.height<768 ? undefined : parent.horizontalCenter
             // otherwise on small displays center on screen and hide picture box
             anchors.centerIn: container.height<768 ? parent : undefined
-            visible: false
-            color: "#22888888"
-            promptColor: "white"
-            infosColor: "lightcoral"
-            titleColor: "white"
-            titleTextColor: "black"
-            //infosHeight: 10
         }
 
         Rectangle {

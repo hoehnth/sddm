@@ -38,7 +38,21 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    PamConvHelper { dialog: passwordChange }
+    Component {
+        id: pwdChangeComp
+        // dialog to change expired passwords
+        PasswordChange {
+            radius: 8
+            color: "#22888888"
+            infosColor: "lightcoral"
+            infosHeight: 20
+        }
+    }
+
+    PamConvHelper {
+        loader: pwdChangeLoader
+        component: pwdChangeComp
+    }
 
     Connections {
         target: sddm
@@ -66,28 +80,23 @@ Rectangle {
         color: "transparent"
         //visible: primaryScreen
 
-        PasswordChange {
-            id: passwordChange
+        Loader {
+            id: pwdChangeLoader
             anchors.horizontalCenter: rectangle.horizontalCenter
             // for regular display size show dialog below user input
             anchors.top: container.height<768 ? undefined : rectangle.bottom
             // center on small displays
             anchors.verticalCenter: container.height<768 ? parent.verticalCenter : undefined
             anchors.topMargin: 16
-            visible: false
-            radius: 8
-            color: "#22888888"
-            infosColor: "lightcoral"
-            infosHeight: 10
         }
 
         Rectangle {
             id: rectangle
             width: 416; height: 262
             color: "#00000000"
-            enabled: !passwordChange.visible
+            enabled: pwdChangeLoader.status != Loader.Ready
             // hide main input for small displays when password change dialog is active
-            visible: !(passwordChange.visible && container.height < 768)
+            visible: !(pwdChangeLoader.status == Loader.Ready && container.height < 768)
 
             anchors.centerIn: parent
 
