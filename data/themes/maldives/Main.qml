@@ -38,7 +38,20 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    PamConvHelper { dialog: passwordChange }
+    Component {
+        id: pwdChangeComp
+        PasswordChange {
+            radius: 8
+            color: "transparent"
+            titleTextColor: "black"
+            infosHeight: 10
+        }
+    }
+
+    PamConvHelper {
+        loader: pwdChangeLoader
+        component: pwdChangeComp
+    }
 
     Connections {
         target: sddm
@@ -94,20 +107,15 @@ Rectangle {
             // center on small displays
             anchors.centerIn: container.height<1024 ? parent : undefined
             anchors.margins: container.height<1024 ? undefined : 32
-            width: passwordChange.width+32
-            height: passwordChange.height+32
-            visible: passwordChange.visible
+            width: pwdChangeLoader.width+32
+            height: pwdChangeLoader.height+32
+            visible: pwdChangeLoader.status == Loader.Ready
             source: "rectangle.png"
         }
 
-        PasswordChange {
-            id: passwordChange
+        Loader {
+            id: pwdChangeLoader
             anchors.centerIn: dialogImg
-            visible: false
-            radius: 8
-            color: "transparent"
-            titleTextColor: "black"
-            infosHeight: 10
         }
 
         Image {
@@ -115,9 +123,9 @@ Rectangle {
             anchors.centerIn: parent
             width: Math.max(320, mainColumn.implicitWidth + 50)
             height: Math.max(320, mainColumn.implicitHeight + 50)
-            enabled: !passwordChange.visible
+            enabled: pwdChangeLoader.status != Loader.Ready
             // hide main input for small displays when password change dialog is active
-            visible: !(passwordChange.visible && container.height<1024)
+            visible: !(pwdChangeLoader.status == Loader.Ready && container.height<1024)
 
             source: "rectangle.png"
 
