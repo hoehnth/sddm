@@ -291,7 +291,9 @@ namespace SDDM {
 
         for (int i = 0; i < n; i++) {
 
-            QString convMsg = QString::fromLocal8Bit(msg[i]->msg);
+             QString convMsg = QString::fromLocal8Bit(msg[i]->msg);
+             QString convShortPin = QString::fromLocal8Bit("PIN too short");
+             int qtStrCmp = 0;
 
             switch(msg[i]->msg_style) {
                 // request password
@@ -305,6 +307,13 @@ namespace SDDM {
                     m_app->error(convMsg, AuthEnums::ERROR_PAM_CONV, m_pam->getResult());
                     break;
                 case PAM_TEXT_INFO:
+                    //Find OpenPGP PIN too short Error treat as Auth Error 
+                    qtStrCmp = QString::compare(convMsg, convShortPin, Qt::CaseInsensitive);
+                    if(qtStrCmp == 0) {
+                      m_app->error(convMsg, AuthEnums::ERROR_AUTHENTICATION, PAM_AUTH_ERR);
+                      break;
+                    }//if
+
                     // send pam conversation msg to greeter via HelperApp, SocketServer, Display
                     qDebug() << "[PAM] PamBackend: pam info message, msg=" << convMsg;
                     m_app->info(convMsg, AuthEnums::INFO_PAM_CONV, m_pam->getResult());
