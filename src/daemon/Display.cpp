@@ -450,11 +450,13 @@ namespace SDDM {
 
         // failed login only when result not PAM_SUCCESS,
         // i.e. error is of type ERROR_AUTHENTICATION
-        if (error == AuthEnums::ERROR_AUTHENTICATION)
+        if (error == AuthEnums::ERROR_AUTHENTICATION) {
+            cancelPamConv();
             emit loginFailed(m_socket, message, result);
-        else if(error == AuthEnums::ERROR_PAM_CONV)
+          }
+        else if(error == AuthEnums::ERROR_PAM_CONV) {
                 emit pamConvMsg(m_socket, message, result);
-
+              }
         // ignore internal errors, no emit
     }
 
